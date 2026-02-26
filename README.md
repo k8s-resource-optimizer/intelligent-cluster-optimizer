@@ -98,11 +98,57 @@ This project implements an intelligent resource optimizer for Kubernetes cluster
 
 ### Testing
 
-| Test Type | Status | Coverage |
-|-----------|--------|----------|
-| Unit Tests | ✅ Done | All major packages |
-| Integration Tests | ✅ Done | CSV-based end-to-end scenarios |
-| Stress Tests | ❌ Pending | Large-scale performance testing |
+| Test Type | Status | Coverage | Details |
+|-----------|--------|----------|---------|
+| Unit Tests | 🟡 Partial | 27/55 packages (49%) | Core algorithms tested, infrastructure gaps |
+| Integration Tests | ✅ Done | End-to-end scenarios | CSV-based recommendation validation |
+| Stress Tests | ❌ Pending | Not started | 10k workloads, 1M samples planned |
+| Race Detection | ✅ Done | All tests pass | `go test -race ./...` |
+| Benchmarks | 🟡 Partial | Limited coverage | Recommendation engine only |
+
+**Test Coverage Breakdown:**
+- ✅ **Well-tested (12 packages):** recommendation, anomaly, prediction, pareto, policy, sla, leakdetector, timepattern, profile, gitops, webhook, logger
+- 🟡 **Partially tested (15 packages):** controller, metrics, safety
+- ❌ **Untested (28 packages):** cost, rollback, scaler, storage, scheduler, events, models, applier
+
+### Code Quality
+
+| Aspect | Status | Details |
+|--------|--------|---------|
+| Linting | ✅ Passing | golangci-lint clean |
+| Formatting | ✅ Passing | gofmt compliant |
+| Security Scan | ✅ Passing | gosec, govulncheck clean |
+| Error Handling | 🟡 Needs Work | Some errors swallowed, missing context wrapping |
+| Input Validation | 🟡 Needs Work | Missing bounds checking in parsers |
+| Code Duplication | 🟡 Moderate | Workload type handlers (Deployment/StatefulSet/DaemonSet) |
+| Performance | 🟡 Needs Optimization | O(n²) sort, full-scan cleanup operations |
+| Resource Management | 🔴 Has Issues | Goroutine leaks, race conditions in collector |
+
+**Known Issues:**
+- 🔴 **Critical:** Garbage collector goroutine never stops (resource leak)
+- 🔴 **Critical:** Race condition in `cmd/collector/main.go` (concurrent map access)
+- 🟡 **Medium:** Circuit breaker mutates shared state without persistence
+- 🟡 **Medium:** O(n²) bubble sort in recommendation engine
+- 🟡 **Medium:** 200+ lines of duplicated workload handling code
+
+### Production Readiness
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Health Probes | ❌ Missing | No `/healthz` or `/readyz` endpoints |
+| Graceful Shutdown | 🟡 Partial | Signal handling exists, but goroutines leak |
+| Observability | 🟡 Partial | Prometheus metrics exported (34 metrics), logs need structure |
+| High Availability | ❌ Not Ready | No leader election, single replica only |
+| Backup/Restore | ❌ Missing | In-memory storage, no persistence |
+| Security Hardening | ✅ Done | Non-root, read-only FS, RBAC configured |
+| Deployment Automation | 🟡 Partial | YAML manifests exist, Helm chart planned |
+
+**Production Gaps:**
+1. **Observability:** Missing structured logging (JSON), no distributed tracing
+2. **Reliability:** No graceful shutdown, goroutine cleanup, or crash recovery
+3. **Scalability:** Single controller instance, no horizontal scaling
+4. **Persistence:** All data lost on restart (in-memory only)
+5. **Monitoring:** Health probes missing, no readiness checks
 
 ---
 
@@ -468,14 +514,82 @@ go test ./pkg/gitops/... -v
 
 ---
 
+## Current Sprint (2-Day Feature Addition)
+
+**Status:** 🚧 In Progress
+**Duration:** 2 days
+**Focus:** Add production features before testing hardening
+
+### Azra (Analytics & Reporting)
+- [ ] Cost Optimization Report Generator (JSON/CSV/HTML export)
+- [ ] What-If Scenario Simulator (risk-free testing)
+- [ ] Historical Trend Analysis (capacity planning, growth predictions)
+- [ ] Recommendation Diff Tool (visual comparison, change impact)
+
+### Erva (Infrastructure & Integration)
+- [ ] Webhook Notification System (Slack/Email/HTTP webhooks)
+- [ ] Production Helm Chart (with prod/staging/dev profiles)
+- [ ] Enhanced Admission Webhook (config validation)
+- [ ] Backup & Restore System (persistent metrics storage)
+
+**After Sprint:** Focus shifts to testing completion (stress tests, missing unit tests, race condition fixes)
+
+---
+
 ## Pending Work
 
-- [x] CI/CD pipeline with lint, test, security, build, release
-- [ ] Stress tests (10k workloads, 1M samples)
-- [ ] Prometheus metrics integration
-- [ ] Webhook notifications (Slack, PagerDuty)
-- [ ] Web dashboard for visualization
-- [ ] Helm chart for production deployment
+### High Priority
+- [ ] **Fix resource leaks** - Stop GC goroutine on shutdown
+- [ ] **Fix race conditions** - Sync map access in collector
+- [ ] **Add health probes** - `/healthz` and `/readyz` endpoints
+- [ ] **Graceful shutdown** - Clean goroutine cleanup
+- [ ] **Complete test coverage** - Test untested packages (cost, rollback, scaler, storage)
+- [ ] **Stress tests** - 10k workloads, 1M samples
+
+### Medium Priority
+- [ ] **Webhook notifications** - Slack, PagerDuty, email integration
+- [ ] **Helm chart** - Production deployment packaging
+- [ ] **Backup/restore** - Persistent storage for metrics
+- [ ] **Structured logging** - JSON logs with correlation IDs
+- [ ] **Performance optimization** - Fix O(n²) sort, optimize cleanup
+
+### Future Enhancements
+- [ ] **Web dashboard** - UI for visualization
+- [ ] **AI-based prediction** - LSTM, Transformer, RL models
+- [ ] **Multi-cluster support** - Federation across clusters
+- [ ] **Leader election** - High availability
+- [ ] **Custom metrics** - User-defined optimization targets
+
+---
+
+## Known Limitations
+
+### Current Constraints
+1. **Single Instance Only** - No leader election, must run single replica
+2. **In-Memory Storage** - All metrics lost on restart, no persistence
+3. **No Horizontal Scaling** - Controller not designed for multiple replicas
+4. **Limited Test Coverage** - 49% of packages have tests, infrastructure gaps remain
+5. **Resource Leaks** - Goroutines not cleaned up on shutdown
+
+### Performance Considerations
+- **Recommendation Generation:** ~50ms for typical workload (1000 samples)
+- **Storage Cleanup:** O(n×m) complexity, slow for >10k pods
+- **Memory Usage:** ~1-2 MB per pod with 24h retention
+- **API Calls:** 60+ calls per StatefulSet rollout (polling-based)
+
+### Not Suitable For
+- ❌ Multi-cluster optimization (single cluster only)
+- ❌ Real-time scaling (<5 minute intervals)
+- ❌ Stateless workloads with <1 hour uptime
+- ❌ Clusters with >50k pods (memory constraints)
+- ❌ Air-gapped environments (requires Metrics API)
+
+### Compatibility
+- ✅ **Kubernetes:** 1.20+ (tested on 1.24-1.28)
+- ✅ **Metrics Server:** Required for data collection
+- ✅ **Go:** 1.21+ for building from source
+- ⚠️ **HPA:** Compatible but manual coordination needed
+- ⚠️ **VPA:** May conflict, choose one or the other
 
 ---
 
