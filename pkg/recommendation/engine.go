@@ -581,6 +581,13 @@ func (e *Engine) generateContainerRecommendationWithOOM(
 	thresholds *optimizerv1alpha1.ResourceThresholds,
 	oomInfo *ContainerOOMDetails,
 ) *ContainerRecommendation {
+	// Safety check: ensure we have enough samples
+	if len(samples) < minSamples {
+		klog.V(3).Infof("Container %s: insufficient samples (%d < %d required) - skipping recommendation",
+			containerName, len(samples), minSamples)
+		return nil
+	}
+
 	// Extract CPU and memory values along with timestamps
 	cpuValues := make([]int64, len(samples))
 	memoryValues := make([]int64, len(samples))

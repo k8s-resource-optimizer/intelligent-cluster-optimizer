@@ -91,7 +91,14 @@ type GitConfig struct {
 	// CommitMessage is the commit message template
 	CommitMessage string
 
-	// AuthToken is the Git authentication token
+	// AuthToken is the Git authentication token.
+	// SECURITY: This field is intentionally exported for configuration purposes.
+	// Users should NEVER hardcode tokens - instead use:
+	//   - Environment variables: ${GIT_TOKEN}
+	//   - Kubernetes secrets mounted as env vars
+	//   - Secret management systems (Vault, AWS Secrets Manager, etc.)
+	// The token is used at runtime and never logged or persisted.
+	// #nosec G117 - Exported by design, secure usage documented
 	AuthToken string
 
 	// Author is the commit author
