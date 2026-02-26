@@ -70,6 +70,10 @@ func (v *OptimizerConfigValidator) ValidateCreate(config *optimizerv1alpha1.Opti
 		return err
 	}
 
+	if err := v.validateNotifications(config); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -426,6 +430,100 @@ func (v *OptimizerConfigValidator) validateExcludeWorkloads(config *optimizerv1a
 		if err != nil {
 			return fmt.Errorf("excludeWorkloads[%d] has invalid regex pattern '%s': %w", i, pattern, err)
 		}
+	}
+
+	return nil
+}
+
+// validateNotifications validates notification configuration
+func (v *OptimizerConfigValidator) validateNotifications(config *optimizerv1alpha1.OptimizerConfig) error {
+	if config.Spec.Notifications == nil || !config.Spec.Notifications.Enabled {
+		return nil
+	}
+
+	notif := config.Spec.Notifications
+
+	// Validate at least one notifier is configured
+	hasNotifier := false
+	if notif.Slack != nil && notif.Slack.WebhookURL != "" {
+		hasNotifier = true
+		// Validate Slack webhook URL format
+		if !strings.HasPrefix(notif.Slack.WebhookURL, "https://hooks.slack.com/") {
+			return fmt.Errorf("notifications.slack.webhookURL must be a valid Slack webhook URL")
+		}
+	}
+
+	if notif.Email != nil {
+		hasNotifier = true
+		// Validate SMTP host
+		if notif.Email.SMTPHost == "" {
+			return fmt.Errorf("notifications.email.smtpHost cannot be empty")
+		}
+
+		// Validate SMTP port
+		if notif.Email.SMTPPort != 0 {
+			if notif.Email.SMTPPort < 1 || notif.Email.SMTPPort > 65535 {
+				return fmt.Errorf("notifications.email.smtpPort must be between 1 and 65535, got %d", notif.Email.SMTPPort)
+			}
+		}
+
+		// Validate From address
+		if notif.Email.From == "" {
+			return fmt.Errorf("notifications.email.from cannot be empty")
+		}
+
+		// Basic email format validation
+		emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+		if !emailRegex.MatchString(notif.Email.From) {
+			return fmt.Errorf("notifications.email.from has invalid email format: %s", notif.Email.From)
+		}
+
+		// Validate To addresses
+		if len(notif.Email.To) == 0 {
+			return fmt.Errorf("notifications.email.to must contain at least one email address")
+		}
+
+		for i, to := range notif.Email.To {
+			if !emailRegex.MatchString(to) {
+				return fmt.Errorf("notifications.email.to[%d] has invalid email format: %s", i, to)
+			}
+		}
+	}
+
+	if len(notif.Webhooks) > 0 {
+		hasNotifier = true
+		for i, webhook := range notif.Webhooks {
+			// Validate name
+			if webhook.Name == "" {
+				return fmt.Errorf("notifications.webhooks[%d].name cannot be empty", i)
+			}
+
+			// Validate URL
+			if webhook.URL == "" {
+				return fmt.Errorf("notifications.webhooks[%d].url cannot be empty", i)
+			}
+
+			// Basic URL validation
+			urlRegex := regexp.MustCompile(`^https?://[\w\-.]+(:\d+)?(/.*)?$`)
+			if !urlRegex.MatchString(webhook.URL) {
+				return fmt.Errorf("notifications.webhooks[%d].url has invalid format: %s", i, webhook.URL)
+			}
+
+			// Validate timeout format if specified
+			if webhook.Timeout != "" {
+				timeout, err := time.ParseDuration(webhook.Timeout)
+				if err != nil {
+					return fmt.Errorf("notifications.webhooks[%d].timeout has invalid duration format: %w", i, err)
+				}
+				if timeout <= 0 {
+					return fmt.Errorf("notifications.webhooks[%d].timeout must be positive, got %s", i, webhook.Timeout)
+				}
+			}
+		}
+	}
+
+	if !hasNotifier {
+		return fmt.Errorf("notifications.enabled is true but no notifiers (slack, email, webhooks) are configured")
 	}
 
 	return nil

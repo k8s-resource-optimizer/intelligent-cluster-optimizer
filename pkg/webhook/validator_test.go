@@ -710,3 +710,295 @@ func TestValidator_ValidateDelete(t *testing.T) {
 func ptrFloat64(v float64) *float64 {
 	return &v
 }
+
+func TestValidator_ValidateNotifications(t *testing.T) {
+	validator := NewValidator()
+
+	tests := []struct {
+		name        string
+		notifications *optimizerv1alpha1.NotificationConfig
+		shouldError bool
+		errorContains string
+	}{
+		{
+			name: "valid slack notification",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+				Slack: &optimizerv1alpha1.SlackConfig{
+					WebhookURL: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX",
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "valid email notification",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+				Email: &optimizerv1alpha1.EmailConfig{
+					SMTPHost: "smtp.gmail.com",
+					SMTPPort: 587,
+					From:     "optimizer@example.com",
+					To:       []string{"admin@example.com"},
+					UseTLS:   true,
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "valid webhook notification",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+				Webhooks: []optimizerv1alpha1.WebhookConfig{
+					{
+						Name:    "custom-webhook",
+						URL:     "https://example.com/webhook",
+						Timeout: "10s",
+					},
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "valid multiple notifiers",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+				Slack: &optimizerv1alpha1.SlackConfig{
+					WebhookURL: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX",
+				},
+				Email: &optimizerv1alpha1.EmailConfig{
+					SMTPHost: "smtp.gmail.com",
+					SMTPPort: 587,
+					From:     "optimizer@example.com",
+					To:       []string{"admin@example.com", "team@example.com"},
+				},
+			},
+			shouldError: false,
+		},
+		{
+			name: "enabled but no notifiers configured",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+			},
+			shouldError: true,
+			errorContains: "no notifiers",
+		},
+		{
+			name: "invalid slack webhook URL",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+				Slack: &optimizerv1alpha1.SlackConfig{
+					WebhookURL: "https://invalid-url.com/webhook",
+				},
+			},
+			shouldError: true,
+			errorContains: "valid Slack webhook URL",
+		},
+		{
+			name: "email with empty SMTP host",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+				Email: &optimizerv1alpha1.EmailConfig{
+					SMTPHost: "",
+					From:     "optimizer@example.com",
+					To:       []string{"admin@example.com"},
+				},
+			},
+			shouldError: true,
+			errorContains: "smtpHost cannot be empty",
+		},
+		{
+			name: "email with invalid port",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+				Email: &optimizerv1alpha1.EmailConfig{
+					SMTPHost: "smtp.gmail.com",
+					SMTPPort: 99999,
+					From:     "optimizer@example.com",
+					To:       []string{"admin@example.com"},
+				},
+			},
+			shouldError: true,
+			errorContains: "smtpPort must be between",
+		},
+		{
+			name: "email with empty from address",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+				Email: &optimizerv1alpha1.EmailConfig{
+					SMTPHost: "smtp.gmail.com",
+					From:     "",
+					To:       []string{"admin@example.com"},
+				},
+			},
+			shouldError: true,
+			errorContains: "from cannot be empty",
+		},
+		{
+			name: "email with invalid from format",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+				Email: &optimizerv1alpha1.EmailConfig{
+					SMTPHost: "smtp.gmail.com",
+					From:     "invalid-email",
+					To:       []string{"admin@example.com"},
+				},
+			},
+			shouldError: true,
+			errorContains: "invalid email format",
+		},
+		{
+			name: "email with no recipients",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+				Email: &optimizerv1alpha1.EmailConfig{
+					SMTPHost: "smtp.gmail.com",
+					From:     "optimizer@example.com",
+					To:       []string{},
+				},
+			},
+			shouldError: true,
+			errorContains: "at least one email address",
+		},
+		{
+			name: "email with invalid recipient",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+				Email: &optimizerv1alpha1.EmailConfig{
+					SMTPHost: "smtp.gmail.com",
+					From:     "optimizer@example.com",
+					To:       []string{"admin@example.com", "invalid-email"},
+				},
+			},
+			shouldError: true,
+			errorContains: "invalid email format",
+		},
+		{
+			name: "webhook with empty name",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+				Webhooks: []optimizerv1alpha1.WebhookConfig{
+					{
+						Name: "",
+						URL:  "https://example.com/webhook",
+					},
+				},
+			},
+			shouldError: true,
+			errorContains: "name cannot be empty",
+		},
+		{
+			name: "webhook with empty URL",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+				Webhooks: []optimizerv1alpha1.WebhookConfig{
+					{
+						Name: "test",
+						URL:  "",
+					},
+				},
+			},
+			shouldError: true,
+			errorContains: "url cannot be empty",
+		},
+		{
+			name: "webhook with invalid URL format",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+				Webhooks: []optimizerv1alpha1.WebhookConfig{
+					{
+						Name: "test",
+						URL:  "not-a-valid-url",
+					},
+				},
+			},
+			shouldError: true,
+			errorContains: "invalid format",
+		},
+		{
+			name: "webhook with invalid timeout",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+				Webhooks: []optimizerv1alpha1.WebhookConfig{
+					{
+						Name:    "test",
+						URL:     "https://example.com/webhook",
+						Timeout: "invalid",
+					},
+				},
+			},
+			shouldError: true,
+			errorContains: "invalid duration format",
+		},
+		{
+			name: "webhook with negative timeout",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: true,
+				Webhooks: []optimizerv1alpha1.WebhookConfig{
+					{
+						Name:    "test",
+						URL:     "https://example.com/webhook",
+						Timeout: "-5s",
+					},
+				},
+			},
+			shouldError: true,
+			errorContains: "must be positive",
+		},
+		{
+			name: "disabled notifications",
+			notifications: &optimizerv1alpha1.NotificationConfig{
+				Enabled: false,
+			},
+			shouldError: false,
+		},
+		{
+			name: "nil notifications",
+			notifications: nil,
+			shouldError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &optimizerv1alpha1.OptimizerConfig{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-config",
+					Namespace: "default",
+				},
+				Spec: optimizerv1alpha1.OptimizerConfigSpec{
+					TargetNamespaces: []string{"default"},
+					Notifications:    tt.notifications,
+				},
+			}
+
+			err := validator.ValidateCreate(config)
+
+			if tt.shouldError && err == nil {
+				t.Errorf("Expected error but got none")
+			}
+
+			if !tt.shouldError && err != nil {
+				t.Errorf("Expected no error but got: %v", err)
+			}
+
+			if tt.shouldError && tt.errorContains != "" && err != nil {
+				if !contains(err.Error(), tt.errorContains) {
+					t.Errorf("Expected error to contain '%s', but got: %v", tt.errorContains, err)
+				}
+			}
+		})
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && containsAny(s, substr))
+}
+
+func containsAny(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}

@@ -1,0 +1,100 @@
+apiVersion: optimizer.cluster.io/v1alpha1
+kind: OptimizerConfig
+metadata:
+  name: optimizer-with-notifications
+  namespace: default
+spec:
+  enabled: true
+  targetNamespaces:
+    - default
+    - production
+
+  # Use production profile for conservative optimization
+  profile: production
+
+  # Notification configuration
+  notifications:
+    enabled: true
+
+    # Optional: Only notify on specific events
+    # If omitted, all events will be notified
+    events:
+      - RecommendationApplied
+      - OOMDetected
+      - MemoryLeakDetected
+      - CircuitBreakerTriggered
+      - SLAViolation
+      - RollbackExecuted
+
+    # Slack notifications
+    slack:
+      webhookURL: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX"
+
+    # Email notifications
+    email:
+      smtpHost: "smtp.gmail.com"
+      smtpPort: 587
+      username: "optimizer@example.com"
+      # Password stored in secret for security
+      passwordSecretRef:
+        name: smtp-credentials
+        # namespace: default  # Optional, defaults to OptimizerConfig namespace
+      from: "optimizer@example.com"
+      to:
+        - "admin@example.com"
+        - "sre-team@example.com"
+      useTLS: true
+      insecureSkipVerify: false  # Set to true only for testing with self-signed certs
+
+    # Generic HTTP webhooks (can configure multiple)
+    webhooks:
+      - name: "pagerduty"
+        url: "https://events.pagerduty.com/v2/enqueue"
+        headers:
+          Authorization: "Token token=YOUR_INTEGRATION_KEY"
+          Content-Type: "application/json"
+        timeout: "10s"
+
+      - name: "custom-monitoring"
+        url: "https://monitoring.example.com/webhook"
+        headers:
+          X-API-Key: "your-api-key"
+        timeout: "5s"
+
+  # Resource thresholds
+  resourceThresholds:
+    cpu:
+      min: "10m"
+      max: "16"
+    memory:
+      min: "64Mi"
+      max: "64Gi"
+
+  # Recommendation configuration
+  recommendations:
+    cpuPercentile: 95
+    memoryPercentile: 95
+    minSamples: 100
+    safetyMargin: 1.2
+    historyDuration: "24h"
+
+  # Circuit breaker for safety
+  circuitBreaker:
+    enabled: true
+    errorThreshold: 5
+    successThreshold: 3
+    timeout: "5m"
+
+---
+# Secret for SMTP password
+# Create with: kubectl create secret generic smtp-credentials --from-literal=password='your-password'
+apiVersion: v1
+kind: Secret
+metadata:
+  name: smtp-credentials
+  namespace: default
+type: Opaque
+data:
+  # password: base64 encoded password
+  # Example: echo -n 'your-password' | base64
+  password: eW91ci1wYXNzd29yZA==  # Replace with your actual base64-encoded password

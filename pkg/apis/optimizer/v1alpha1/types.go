@@ -98,6 +98,10 @@ type OptimizerConfigSpec struct {
 	// ExcludeWorkloads is a list of workload name patterns to exclude (regex)
 	// +optional
 	ExcludeWorkloads []string `json:"excludeWorkloads,omitempty"`
+
+	// Notifications configures event notifications to external systems
+	// +optional
+	Notifications *NotificationConfig `json:"notifications,omitempty"`
 }
 
 // OptimizationStrategy defines how aggressive the optimizer should be
@@ -429,6 +433,131 @@ const (
 	// TargetResourceDaemonSets targets DaemonSet resources
 	TargetResourceDaemonSets TargetResourceType = "daemonsets"
 )
+
+// NotificationConfig defines notification configuration
+type NotificationConfig struct {
+	// Enabled controls whether notifications are active
+	// +optional
+	// +kubebuilder:default=false
+	Enabled bool `json:"enabled"`
+
+	// Events is a list of event types to notify on
+	// If empty, all events will be notified
+	// +optional
+	Events []NotificationEventType `json:"events,omitempty"`
+
+	// Slack configuration for Slack notifications
+	// +optional
+	Slack *SlackConfig `json:"slack,omitempty"`
+
+	// Email configuration for email notifications
+	// +optional
+	Email *EmailConfig `json:"email,omitempty"`
+
+	// Webhooks is a list of generic HTTP webhook configurations
+	// +optional
+	Webhooks []WebhookConfig `json:"webhooks,omitempty"`
+}
+
+// NotificationEventType defines the types of events that can trigger notifications
+// +kubebuilder:validation:Enum=RecommendationApplied;OOMDetected;MemoryLeakDetected;CircuitBreakerTriggered;SLAViolation;RollbackExecuted
+type NotificationEventType string
+
+const (
+	// NotificationEventRecommendationApplied is triggered when a recommendation is applied
+	NotificationEventRecommendationApplied NotificationEventType = "RecommendationApplied"
+	// NotificationEventOOMDetected is triggered when an OOM is detected
+	NotificationEventOOMDetected NotificationEventType = "OOMDetected"
+	// NotificationEventMemoryLeakDetected is triggered when a memory leak is detected
+	NotificationEventMemoryLeakDetected NotificationEventType = "MemoryLeakDetected"
+	// NotificationEventCircuitBreakerTriggered is triggered when circuit breaker opens
+	NotificationEventCircuitBreakerTriggered NotificationEventType = "CircuitBreakerTriggered"
+	// NotificationEventSLAViolation is triggered when an SLA violation is detected
+	NotificationEventSLAViolation NotificationEventType = "SLAViolation"
+	// NotificationEventRollbackExecuted is triggered when a rollback is performed
+	NotificationEventRollbackExecuted NotificationEventType = "RollbackExecuted"
+)
+
+// SlackConfig defines Slack notification configuration
+type SlackConfig struct {
+	// WebhookURL is the Slack webhook URL
+	// +required
+	WebhookURL string `json:"webhookURL"`
+}
+
+// EmailConfig defines email notification configuration
+type EmailConfig struct {
+	// SMTPHost is the SMTP server hostname
+	// +required
+	SMTPHost string `json:"smtpHost"`
+
+	// SMTPPort is the SMTP server port
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	// +kubebuilder:default=587
+	SMTPPort int `json:"smtpPort,omitempty"`
+
+	// Username is the SMTP authentication username
+	// +optional
+	Username string `json:"username,omitempty"`
+
+	// PasswordSecretRef is a reference to a secret containing the SMTP password
+	// Secret must contain a key named "password"
+	// +optional
+	PasswordSecretRef *SecretReference `json:"passwordSecretRef,omitempty"`
+
+	// From is the sender email address
+	// +required
+	From string `json:"from"`
+
+	// To is a list of recipient email addresses
+	// +required
+	// +kubebuilder:validation:MinItems=1
+	To []string `json:"to"`
+
+	// UseTLS enables TLS for SMTP connection
+	// +optional
+	// +kubebuilder:default=true
+	UseTLS bool `json:"useTLS,omitempty"`
+
+	// InsecureSkipVerify skips TLS certificate verification (not recommended for production)
+	// +optional
+	// +kubebuilder:default=false
+	InsecureSkipVerify bool `json:"insecureSkipVerify,omitempty"`
+}
+
+// WebhookConfig defines generic HTTP webhook configuration
+type WebhookConfig struct {
+	// Name is a unique identifier for this webhook
+	// +required
+	Name string `json:"name"`
+
+	// URL is the webhook endpoint URL
+	// +required
+	URL string `json:"url"`
+
+	// Headers are custom HTTP headers to send with the request
+	// +optional
+	Headers map[string]string `json:"headers,omitempty"`
+
+	// Timeout is the request timeout (e.g., "10s", "30s")
+	// +optional
+	// +kubebuilder:default="10s"
+	Timeout string `json:"timeout,omitempty"`
+}
+
+// SecretReference contains information to locate a secret
+type SecretReference struct {
+	// Name is the name of the secret
+	// +required
+	Name string `json:"name"`
+
+	// Namespace is the namespace of the secret
+	// If empty, uses the same namespace as the OptimizerConfig
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+}
 
 // OptimizerConfigStatus defines the observed state of OptimizerConfig
 type OptimizerConfigStatus struct {
