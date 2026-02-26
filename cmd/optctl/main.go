@@ -28,6 +28,7 @@ var (
 	outputJSON    bool
 	pricingModel  string
 	allNamespaces bool
+	format        string
 )
 
 const defaultHistoryFile = "/var/lib/optimizer/rollback-history.json"
@@ -40,6 +41,7 @@ func main() {
 	flag.BoolVar(&outputJSON, "json", false, "Output in JSON format")
 	flag.StringVar(&pricingModel, "pricing", "default", "Pricing model (aws-us-east-1, gcp-us-central1, azure-eastus, default)")
 	flag.BoolVar(&allNamespaces, "all-namespaces", false, "List across all namespaces (for cost command)")
+	flag.StringVar(&format, "format", "json", "Output format for reports: json, csv, html")
 	flag.Parse()
 
 	if len(flag.Args()) < 1 {
@@ -91,6 +93,18 @@ func main() {
 		if err := handleCost(kubeClient, namespace); err != nil {
 			klog.Fatalf("Cost calculation failed: %v", err)
 		}
+	case "report":
+		subcommand := ""
+		if len(flag.Args()) > 1 {
+			subcommand = flag.Args()[1]
+		}
+		namespace := ""
+		if len(flag.Args()) > 2 {
+			namespace = flag.Args()[2]
+		}
+		if err := handleReport(kubeClient, subcommand, namespace); err != nil {
+			klog.Fatalf("Report generation failed: %v", err)
+		}
 	case "dashboard":
 		if err := handleDashboard(kubeClient); err != nil {
 			klog.Fatalf("Dashboard failed: %v", err)
@@ -106,6 +120,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "  dashboard                             Show cluster overview dashboard\n")
 	fmt.Fprintf(os.Stderr, "  cost [namespace]                      Calculate resource costs and savings\n")
 	fmt.Fprintf(os.Stderr, "  cost pricing                          Show available pricing models\n")
+	fmt.Fprintf(os.Stderr, "  report cost [namespace]               Generate detailed cost optimization report\n")
 	fmt.Fprintf(os.Stderr, "  history [resource]                    Show optimization history\n")
 	fmt.Fprintf(os.Stderr, "  rollback <namespace/kind/name>        Rollback workload to previous config\n")
 	fmt.Fprintf(os.Stderr, "\nOptions:\n")
@@ -113,6 +128,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "  --container       Container name (default: all containers)\n")
 	fmt.Fprintf(os.Stderr, "  --pricing         Pricing model (default: default)\n")
 	fmt.Fprintf(os.Stderr, "  --all-namespaces  Calculate costs across all namespaces\n")
+	fmt.Fprintf(os.Stderr, "  --format          Output format for reports: json, csv, html (default: json)\n")
 	fmt.Fprintf(os.Stderr, "  --history-file    Path to history file (default: %s)\n", defaultHistoryFile)
 	fmt.Fprintf(os.Stderr, "  --json            Output in JSON format\n")
 	fmt.Fprintf(os.Stderr, "\nExamples:\n")
@@ -121,6 +137,8 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "  optctl cost --all-namespaces                    # Cost for all namespaces\n")
 	fmt.Fprintf(os.Stderr, "  optctl cost pricing                             # Show pricing models\n")
 	fmt.Fprintf(os.Stderr, "  optctl --pricing=aws-us-east-1 cost default     # Use AWS pricing\n")
+	fmt.Fprintf(os.Stderr, "  optctl report cost default                      # Generate cost report (JSON)\n")
+	fmt.Fprintf(os.Stderr, "  optctl report cost --format=html default > report.html   # HTML report\n")
 	fmt.Fprintf(os.Stderr, "  optctl history                                  # Show all history\n")
 	fmt.Fprintf(os.Stderr, "  optctl rollback default/Deployment/nginx        # Rollback workload\n")
 }
