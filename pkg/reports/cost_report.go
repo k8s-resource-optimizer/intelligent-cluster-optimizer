@@ -14,13 +14,13 @@ import (
 
 // CostReport represents a comprehensive cost analysis report
 type CostReport struct {
-	ClusterName      string            `json:"cluster_name"`
-	GeneratedAt      time.Time         `json:"generated_at"`
-	TotalMonthlyCost float64           `json:"total_monthly_cost"`
-	PotentialSavings float64           `json:"potential_savings"`
-	WastePercentage  float64           `json:"waste_percentage"`
-	TopWasters       []WorkloadWaste   `json:"top_wasters"`
-	Summary          ReportSummary     `json:"summary"`
+	ClusterName      string          `json:"cluster_name"`
+	GeneratedAt      time.Time       `json:"generated_at"`
+	TotalMonthlyCost float64         `json:"total_monthly_cost"`
+	PotentialSavings float64         `json:"potential_savings"`
+	WastePercentage  float64         `json:"waste_percentage"`
+	TopWasters       []WorkloadWaste `json:"top_wasters"`
+	Summary          ReportSummary   `json:"summary"`
 }
 
 // WorkloadWaste represents a single workload's cost waste analysis
@@ -38,10 +38,10 @@ type WorkloadWaste struct {
 
 // ReportSummary provides high-level statistics
 type ReportSummary struct {
-	TotalWorkloads     int     `json:"total_workloads"`
-	OverProvisioned    int     `json:"over_provisioned"`
-	UnderProvisioned   int     `json:"under_provisioned"`
-	OptimallyProvisioned int   `json:"optimally_provisioned"`
+	TotalWorkloads        int     `json:"total_workloads"`
+	OverProvisioned       int     `json:"over_provisioned"`
+	UnderProvisioned      int     `json:"under_provisioned"`
+	OptimallyProvisioned  int     `json:"optimally_provisioned"`
 	AverageSavingsPercent float64 `json:"average_savings_percent"`
 }
 
@@ -337,4 +337,3 @@ func generateSummary(wasters []WorkloadWaste) ReportSummary {
 
 	return summary
 }
-

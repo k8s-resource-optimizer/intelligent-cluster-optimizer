@@ -364,7 +364,7 @@ func TestSafety_OOMHistory(t *testing.T) {
 			// Test memory recommendation with OOM boost
 			baseMemory := int64(512 * 1024 * 1024) // 512 MB
 			p95Memory := int64(400 * 1024 * 1024)  // P95 = 400 MB
-			safetyMargin := 1.2                     // 20% safety margin
+			safetyMargin := 1.2                    // 20% safety margin
 
 			// Without OOM: P95 * safety margin
 			withoutOOM := int64(float64(p95Memory) * safetyMargin)

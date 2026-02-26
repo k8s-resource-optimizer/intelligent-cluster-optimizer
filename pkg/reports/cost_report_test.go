@@ -21,9 +21,9 @@ func TestGenerateCostReport(t *testing.T) {
 			Containers: []recommendation.ContainerRecommendation{
 				{
 					ContainerName:     "nginx",
-					CurrentCPU:        1000, // 1000m (1 core)
+					CurrentCPU:        1000,              // 1000m (1 core)
 					CurrentMemory:     512 * 1024 * 1024, // 512Mi
-					RecommendedCPU:    300,  // 300m (recommended)
+					RecommendedCPU:    300,               // 300m (recommended)
 					RecommendedMemory: 256 * 1024 * 1024, // 256Mi
 					Confidence:        0.92,
 					EstimatedSavings: &cost.SavingsEstimate{
@@ -47,7 +47,7 @@ func TestGenerateCostReport(t *testing.T) {
 					ContainerName:     "redis",
 					CurrentCPU:        500,
 					CurrentMemory:     1024 * 1024 * 1024,
-					RecommendedCPU:    600,  // Under-provisioned
+					RecommendedCPU:    600, // Under-provisioned
 					RecommendedMemory: 1536 * 1024 * 1024,
 					Confidence:        0.88,
 					EstimatedSavings: &cost.SavingsEstimate{
@@ -55,10 +55,10 @@ func TestGenerateCostReport(t *testing.T) {
 							TotalPerMonth: 50.00,
 						},
 						RecommendedCost: cost.ResourceCost{
-							TotalPerMonth: 65.00,  // Higher cost (need more resources)
+							TotalPerMonth: 65.00, // Higher cost (need more resources)
 						},
 					},
-					HasOOMHistory: true,  // OOM risk
+					HasOOMHistory: true, // OOM risk
 				},
 			},
 		},
