@@ -208,3 +208,34 @@ func (s *InMemoryStorage) StartGarbageCollector(interval time.Duration, maxAge t
 		}
 	}()
 }
+
+// Snapshot returns a deep copy of the current storage state for backup purposes
+func (s *InMemoryStorage) Snapshot() map[string][]models.PodMetric {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	// Create a deep copy to avoid race conditions
+	snapshot := make(map[string][]models.PodMetric, len(s.history))
+	for podName, metrics := range s.history {
+		metricsCopy := make([]models.PodMetric, len(metrics))
+		copy(metricsCopy, metrics)
+		snapshot[podName] = metricsCopy
+	}
+
+	return snapshot
+}
+
+// Restore replaces the current storage state with the provided data
+// This is used to restore from a backup
+func (s *InMemoryStorage) Restore(data map[string][]models.PodMetric) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Replace the entire history with the backup data
+	s.history = make(map[string][]models.PodMetric, len(data))
+	for podName, metrics := range data {
+		metricsCopy := make([]models.PodMetric, len(metrics))
+		copy(metricsCopy, metrics)
+		s.history[podName] = metricsCopy
+	}
+}

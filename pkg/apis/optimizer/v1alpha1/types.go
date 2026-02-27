@@ -102,6 +102,10 @@ type OptimizerConfigSpec struct {
 	// Notifications configures event notifications to external systems
 	// +optional
 	Notifications *NotificationConfig `json:"notifications,omitempty"`
+
+	// Backup configures automatic backup of metrics storage
+	// +optional
+	Backup *BackupConfig `json:"backup,omitempty"`
 }
 
 // OptimizationStrategy defines how aggressive the optimizer should be
@@ -699,6 +703,31 @@ const (
 	// ConditionUnknown means the condition status is unknown
 	ConditionUnknown ConditionStatus = "Unknown"
 )
+
+// BackupConfig defines backup configuration
+type BackupConfig struct {
+	// Enabled controls whether backups are active
+	// +optional
+	// +kubebuilder:default=false
+	Enabled bool `json:"enabled"`
+
+	// Interval is how often to create backups (e.g., "5m", "1h")
+	// +optional
+	// +kubebuilder:default="5m"
+	Interval string `json:"interval,omitempty"`
+
+	// RetentionCount is the number of backups to keep
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=100
+	// +kubebuilder:default=10
+	RetentionCount int `json:"retentionCount,omitempty"`
+
+	// StorageDir is the directory where backups are stored
+	// +optional
+	// +kubebuilder:default="/var/lib/optimizer/backups"
+	StorageDir string `json:"storageDir,omitempty"`
+}
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
