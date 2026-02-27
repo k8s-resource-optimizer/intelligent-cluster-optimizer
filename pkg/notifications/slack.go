@@ -32,17 +32,17 @@ func (s *SlackNotifier) Name() string {
 
 // slackMessage represents a Slack message payload
 type slackMessage struct {
-	Text        string             `json:"text,omitempty"`
-	Attachments []slackAttachment  `json:"attachments,omitempty"`
+	Text        string            `json:"text,omitempty"`
+	Attachments []slackAttachment `json:"attachments,omitempty"`
 }
 
 // slackAttachment represents a Slack attachment
 type slackAttachment struct {
-	Color     string        `json:"color,omitempty"`
-	Title     string        `json:"title,omitempty"`
-	Text      string        `json:"text,omitempty"`
-	Fields    []slackField  `json:"fields,omitempty"`
-	Timestamp int64         `json:"ts,omitempty"`
+	Color     string       `json:"color,omitempty"`
+	Title     string       `json:"title,omitempty"`
+	Text      string       `json:"text,omitempty"`
+	Fields    []slackField `json:"fields,omitempty"`
+	Timestamp int64        `json:"ts,omitempty"`
 }
 
 // slackField represents a field in a Slack attachment
@@ -75,6 +75,7 @@ func (s *SlackNotifier) Send(ctx context.Context, event *Event) error {
 	req.Header.Set("Content-Type", "application/json")
 
 	// Send request
+	// #nosec G704 - Slack webhook URL is configured by cluster admin, not user input
 	resp, err := s.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send slack notification: %w", err)

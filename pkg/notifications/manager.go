@@ -80,21 +80,24 @@ func (m *Manager) Send(event *Event) {
 		return
 	}
 
+	// Make a copy of the event to avoid race conditions when called concurrently
+	eventCopy := *event
+
 	// Set timestamp if not already set
-	if event.Timestamp.IsZero() {
-		event.Timestamp = time.Now()
+	if eventCopy.Timestamp.IsZero() {
+		eventCopy.Timestamp = time.Now()
 	}
 
 	m.logger.Info("sending notification",
-		zap.String("event_type", string(event.Type)),
-		zap.String("severity", string(event.Severity)),
-		zap.String("namespace", event.Namespace),
+		zap.String("event_type", string(eventCopy.Type)),
+		zap.String("severity", string(eventCopy.Severity)),
+		zap.String("namespace", eventCopy.Namespace),
 		zap.Int("notifier_count", len(notifiers)))
 
 	// Fan out to all notifiers in parallel
 	for _, notifier := range notifiers {
 		// Launch each notifier in a goroutine to avoid blocking
-		go m.sendWithRetry(notifier, event)
+		go m.sendWithRetry(notifier, &eventCopy)
 	}
 }
 

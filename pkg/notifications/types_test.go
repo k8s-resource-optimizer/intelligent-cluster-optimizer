@@ -45,9 +45,9 @@ func TestEvent_GetSeverityColor(t *testing.T) {
 
 func TestEvent_GetTitle(t *testing.T) {
 	tests := []struct {
-		name     string
-		event    *Event
-		want     string
+		name  string
+		event *Event
+		want  string
 	}{
 		{
 			name: "recommendation applied with info severity",

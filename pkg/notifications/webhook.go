@@ -81,6 +81,7 @@ func (w *WebhookNotifier) Send(ctx context.Context, event *Event) error {
 	}
 
 	// Send request
+	// #nosec G704 - Webhook URL is configured by cluster admin, not user input
 	resp, err := w.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send webhook notification: %w", err)

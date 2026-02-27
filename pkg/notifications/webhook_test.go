@@ -12,11 +12,11 @@ import (
 
 func TestWebhookNotifier_Send(t *testing.T) {
 	tests := []struct {
-		name           string
-		config         WebhookConfig
-		event          *Event
-		serverResponse int
-		wantErr        bool
+		name            string
+		config          WebhookConfig
+		event           *Event
+		serverResponse  int
+		wantErr         bool
 		validatePayload func(t *testing.T, payload *webhookPayload)
 		validateHeaders func(t *testing.T, headers http.Header)
 	}{
@@ -24,7 +24,7 @@ func TestWebhookNotifier_Send(t *testing.T) {
 			name: "successful webhook notification",
 			config: WebhookConfig{
 				Headers: map[string]string{
-					"Authorization": "Bearer token123",
+					"Authorization":   "Bearer token123",
 					"X-Custom-Header": "custom-value",
 				},
 			},
@@ -66,7 +66,7 @@ func TestWebhookNotifier_Send(t *testing.T) {
 			},
 		},
 		{
-			name: "webhook returns error status",
+			name:   "webhook returns error status",
 			config: WebhookConfig{},
 			event: &Event{
 				Type:      EventSLAViolation,
@@ -75,8 +75,8 @@ func TestWebhookNotifier_Send(t *testing.T) {
 				Message:   "SLA violation detected",
 				Timestamp: time.Now(),
 			},
-			serverResponse: http.StatusBadRequest,
-			wantErr:        true,
+			serverResponse:  http.StatusBadRequest,
+			wantErr:         true,
 			validatePayload: nil,
 			validateHeaders: nil,
 		},
@@ -92,8 +92,8 @@ func TestWebhookNotifier_Send(t *testing.T) {
 				Message:   "Test",
 				Timestamp: time.Now(),
 			},
-			serverResponse: http.StatusAccepted,
-			wantErr:        false,
+			serverResponse:  http.StatusAccepted,
+			wantErr:         false,
 			validatePayload: nil,
 			validateHeaders: nil,
 		},

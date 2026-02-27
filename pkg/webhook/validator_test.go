@@ -715,9 +715,9 @@ func TestValidator_ValidateNotifications(t *testing.T) {
 	validator := NewValidator()
 
 	tests := []struct {
-		name        string
+		name          string
 		notifications *optimizerv1alpha1.NotificationConfig
-		shouldError bool
+		shouldError   bool
 		errorContains string
 	}{
 		{
@@ -779,7 +779,7 @@ func TestValidator_ValidateNotifications(t *testing.T) {
 			notifications: &optimizerv1alpha1.NotificationConfig{
 				Enabled: true,
 			},
-			shouldError: true,
+			shouldError:   true,
 			errorContains: "no notifiers",
 		},
 		{
@@ -790,7 +790,7 @@ func TestValidator_ValidateNotifications(t *testing.T) {
 					WebhookURL: "https://invalid-url.com/webhook",
 				},
 			},
-			shouldError: true,
+			shouldError:   true,
 			errorContains: "valid Slack webhook URL",
 		},
 		{
@@ -803,7 +803,7 @@ func TestValidator_ValidateNotifications(t *testing.T) {
 					To:       []string{"admin@example.com"},
 				},
 			},
-			shouldError: true,
+			shouldError:   true,
 			errorContains: "smtpHost cannot be empty",
 		},
 		{
@@ -817,7 +817,7 @@ func TestValidator_ValidateNotifications(t *testing.T) {
 					To:       []string{"admin@example.com"},
 				},
 			},
-			shouldError: true,
+			shouldError:   true,
 			errorContains: "smtpPort must be between",
 		},
 		{
@@ -830,7 +830,7 @@ func TestValidator_ValidateNotifications(t *testing.T) {
 					To:       []string{"admin@example.com"},
 				},
 			},
-			shouldError: true,
+			shouldError:   true,
 			errorContains: "from cannot be empty",
 		},
 		{
@@ -843,7 +843,7 @@ func TestValidator_ValidateNotifications(t *testing.T) {
 					To:       []string{"admin@example.com"},
 				},
 			},
-			shouldError: true,
+			shouldError:   true,
 			errorContains: "invalid email format",
 		},
 		{
@@ -856,7 +856,7 @@ func TestValidator_ValidateNotifications(t *testing.T) {
 					To:       []string{},
 				},
 			},
-			shouldError: true,
+			shouldError:   true,
 			errorContains: "at least one email address",
 		},
 		{
@@ -869,7 +869,7 @@ func TestValidator_ValidateNotifications(t *testing.T) {
 					To:       []string{"admin@example.com", "invalid-email"},
 				},
 			},
-			shouldError: true,
+			shouldError:   true,
 			errorContains: "invalid email format",
 		},
 		{
@@ -883,7 +883,7 @@ func TestValidator_ValidateNotifications(t *testing.T) {
 					},
 				},
 			},
-			shouldError: true,
+			shouldError:   true,
 			errorContains: "name cannot be empty",
 		},
 		{
@@ -897,7 +897,7 @@ func TestValidator_ValidateNotifications(t *testing.T) {
 					},
 				},
 			},
-			shouldError: true,
+			shouldError:   true,
 			errorContains: "url cannot be empty",
 		},
 		{
@@ -911,7 +911,7 @@ func TestValidator_ValidateNotifications(t *testing.T) {
 					},
 				},
 			},
-			shouldError: true,
+			shouldError:   true,
 			errorContains: "invalid format",
 		},
 		{
@@ -926,7 +926,7 @@ func TestValidator_ValidateNotifications(t *testing.T) {
 					},
 				},
 			},
-			shouldError: true,
+			shouldError:   true,
 			errorContains: "invalid duration format",
 		},
 		{
@@ -941,7 +941,7 @@ func TestValidator_ValidateNotifications(t *testing.T) {
 					},
 				},
 			},
-			shouldError: true,
+			shouldError:   true,
 			errorContains: "must be positive",
 		},
 		{
@@ -952,9 +952,9 @@ func TestValidator_ValidateNotifications(t *testing.T) {
 			shouldError: false,
 		},
 		{
-			name: "nil notifications",
+			name:          "nil notifications",
 			notifications: nil,
-			shouldError: false,
+			shouldError:   false,
 		},
 	}
 

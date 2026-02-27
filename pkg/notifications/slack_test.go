@@ -12,10 +12,10 @@ import (
 
 func TestSlackNotifier_Send(t *testing.T) {
 	tests := []struct {
-		name           string
-		event          *Event
-		serverResponse int
-		wantErr        bool
+		name            string
+		event           *Event
+		serverResponse  int
+		wantErr         bool
 		validatePayload func(t *testing.T, payload *slackMessage)
 	}{
 		{
@@ -85,8 +85,8 @@ func TestSlackNotifier_Send(t *testing.T) {
 				Message:   "Test",
 				Timestamp: time.Now(),
 			},
-			serverResponse: http.StatusInternalServerError,
-			wantErr:        true,
+			serverResponse:  http.StatusInternalServerError,
+			wantErr:         true,
 			validatePayload: nil,
 		},
 	}

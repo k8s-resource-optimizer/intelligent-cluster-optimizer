@@ -70,6 +70,7 @@ func TestGenerateCostReport(t *testing.T) {
 	// Verify report structure
 	if report == nil {
 		t.Fatal("Report is nil")
+		return
 	}
 
 	if report.ClusterName != "test-cluster" {

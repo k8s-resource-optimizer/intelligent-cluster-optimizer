@@ -16,21 +16,21 @@ import (
 
 // BackupManager manages periodic backups of the metrics storage
 type BackupManager struct {
-	storage         *InMemoryStorage
-	storageDir      string
-	retentionCount  int
-	backupInterval  time.Duration
-	logger          *zap.Logger
-	stopCh          chan struct{}
-	enabled         bool
+	storage        *InMemoryStorage
+	storageDir     string
+	retentionCount int
+	backupInterval time.Duration
+	logger         *zap.Logger
+	stopCh         chan struct{}
+	enabled        bool
 }
 
 // BackupConfig contains configuration for the backup manager
 type BackupConfig struct {
-	Enabled         bool
-	StorageDir      string
-	RetentionCount  int
-	BackupInterval  time.Duration
+	Enabled        bool
+	StorageDir     string
+	RetentionCount int
+	BackupInterval time.Duration
 }
 
 // NewBackupManager creates a new backup manager
@@ -69,7 +69,7 @@ func (bm *BackupManager) Start() error {
 	}
 
 	// Ensure backup directory exists
-	if err := os.MkdirAll(bm.storageDir, 0755); err != nil {
+	if err := os.MkdirAll(bm.storageDir, 0750); err != nil {
 		return fmt.Errorf("failed to create backup directory: %w", err)
 	}
 
@@ -136,6 +136,7 @@ func (bm *BackupManager) CreateBackup() error {
 	tempPath := backupPath + ".tmp"
 
 	// Create gzip compressed file
+	// #nosec G304 - tempPath is constructed from validated storageDir config, not user input
 	file, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to create temp backup file: %w", err)
@@ -146,27 +147,27 @@ func (bm *BackupManager) CreateBackup() error {
 	// Marshal and write data
 	encoder := json.NewEncoder(gzipWriter)
 	if err := encoder.Encode(snapshot); err != nil {
-		gzipWriter.Close()
-		file.Close()
-		os.Remove(tempPath)
+		_ = gzipWriter.Close()  // #nosec G104 - Cleanup, error already being returned
+		_ = file.Close()        // #nosec G104 - Cleanup, error already being returned
+		_ = os.Remove(tempPath) // #nosec G104 - Best effort cleanup
 		return fmt.Errorf("failed to encode backup data: %w", err)
 	}
 
 	// Close writers
 	if err := gzipWriter.Close(); err != nil {
-		file.Close()
-		os.Remove(tempPath)
+		_ = file.Close()        // #nosec G104 - Cleanup, error already being returned
+		_ = os.Remove(tempPath) // #nosec G104 - Best effort cleanup
 		return fmt.Errorf("failed to close gzip writer: %w", err)
 	}
 
 	if err := file.Close(); err != nil {
-		os.Remove(tempPath)
+		_ = os.Remove(tempPath) // #nosec G104 - Best effort cleanup
 		return fmt.Errorf("failed to close backup file: %w", err)
 	}
 
 	// Atomic rename
 	if err := os.Rename(tempPath, backupPath); err != nil {
-		os.Remove(tempPath)
+		_ = os.Remove(tempPath) // #nosec G104 - Best effort cleanup
 		return fmt.Errorf("failed to rename backup file: %w", err)
 	}
 

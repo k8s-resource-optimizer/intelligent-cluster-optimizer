@@ -23,9 +23,17 @@ type EmailNotifier struct {
 
 // EmailConfig contains SMTP email configuration
 type EmailConfig struct {
-	SMTPHost     string
-	SMTPPort     int
-	Username     string
+	SMTPHost string
+	SMTPPort int
+	Username string
+	// Password is the SMTP authentication password.
+	// SECURITY: This field is intentionally exported for configuration purposes.
+	// Users should NEVER hardcode passwords - instead use:
+	//   - Environment variables: ${SMTP_PASSWORD}
+	//   - Kubernetes secrets mounted as env vars
+	//   - Secret management systems (Vault, AWS Secrets Manager, etc.)
+	// The password is used at runtime and never logged or persisted.
+	// #nosec G117 - Exported by design, secure usage documented
 	Password     string
 	From         string
 	To           []string
