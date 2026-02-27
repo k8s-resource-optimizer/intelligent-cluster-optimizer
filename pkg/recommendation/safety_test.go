@@ -136,6 +136,7 @@ func TestSafety_HighVariance(t *testing.T) {
 
 	if rec == nil {
 		t.Fatal("Failed to generate recommendation")
+		return
 	}
 
 	t.Logf("\n=== Recommendation Results ===")

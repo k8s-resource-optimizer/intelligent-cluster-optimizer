@@ -1,0 +1,21 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+issues:
+  exclude-rules:
+    # Exclude deprecation warnings for fake.NewSimpleClientset in tests
+    # This is used throughout test files and migrating to NewClientset requires
+    # apply configurations which are not currently generated
+    - path: _test\.go
+      linters:
+        - staticcheck
+      text: "SA1019.*fake.NewSimpleClientset"

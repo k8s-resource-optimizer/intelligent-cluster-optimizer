@@ -305,6 +305,7 @@ func TestNewPrometheusExporter(t *testing.T) {
 
 	if exporter == nil {
 		t.Fatal("Expected non-nil exporter")
+		return
 	}
 
 	// Verify all metrics are initialized

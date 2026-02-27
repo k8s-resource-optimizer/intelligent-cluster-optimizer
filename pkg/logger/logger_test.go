@@ -123,6 +123,7 @@ func TestLoggerWithFields(t *testing.T) {
 	loggerWithFields := logger.WithFields("key1", "value1", "key2", 123)
 	if loggerWithFields == nil {
 		t.Fatal("Expected non-nil logger from WithFields()")
+		return
 	}
 
 	// Test logging with fields
@@ -141,6 +142,7 @@ func TestLoggerWithError(t *testing.T) {
 	loggerWithError := logger.WithError(testErr)
 	if loggerWithError == nil {
 		t.Fatal("Expected non-nil logger from WithError()")
+		return
 	}
 
 	// Test logging with error

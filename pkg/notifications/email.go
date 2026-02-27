@@ -176,7 +176,7 @@ func (e *EmailNotifier) sendWithTLS(addr string, message []byte) error {
 	if err != nil {
 		return fmt.Errorf("failed to create SMTP client: %w", err)
 	}
-	defer client.Quit()
+	defer func() { _ = client.Quit() }() // Best effort cleanup
 
 	// Authenticate if credentials provided
 	if e.username != "" && e.password != "" {

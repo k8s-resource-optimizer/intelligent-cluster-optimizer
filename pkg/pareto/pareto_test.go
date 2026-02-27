@@ -37,6 +37,7 @@ func TestSolution_SetCostObjective(t *testing.T) {
 	obj := sol.Objectives[ObjectiveCost]
 	if obj == nil {
 		t.Fatal("Cost objective not set")
+		return
 	}
 
 	// Expected: 1 core * 0.05 + 1 GB * 0.01 = 0.06
@@ -118,6 +119,7 @@ func TestOptimizer_Optimize(t *testing.T) {
 
 	if result == nil {
 		t.Fatal("Optimize returned nil")
+		return
 	}
 
 	if len(result.AllSolutions) != 3 {
@@ -222,12 +224,14 @@ func TestOptimizer_SelectBestForProfile(t *testing.T) {
 	prodChoice := opt.SelectBestForProfile(result, "production")
 	if prodChoice == nil {
 		t.Fatal("Production choice should not be nil")
+		return
 	}
 
 	// Development should prioritize cost
 	devChoice := opt.SelectBestForProfile(result, "development")
 	if devChoice == nil {
 		t.Fatal("Development choice should not be nil")
+		return
 	}
 
 	// They may or may not be the same depending on the frontier
@@ -264,6 +268,7 @@ func TestRecommendationHelper_GenerateRecommendation(t *testing.T) {
 
 	if rec == nil {
 		t.Fatal("Recommendation should not be nil")
+		return
 	}
 
 	if rec.BestSolution == nil {
@@ -414,6 +419,7 @@ func TestOptimizer_EmptySolutions(t *testing.T) {
 
 	if result == nil {
 		t.Fatal("Should return result even with empty solutions")
+		return
 	}
 
 	if len(result.ParetoFrontier) != 0 {

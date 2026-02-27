@@ -134,7 +134,7 @@ func (s *SlackNotifier) buildSlackMessage(event *Event) *slackMessage {
 	}
 
 	return &slackMessage{
-		Text: fmt.Sprintf("🔔 Intelligent Cluster Optimizer Alert"),
+		Text: "🔔 Intelligent Cluster Optimizer Alert",
 		Attachments: []slackAttachment{
 			{
 				Color:     event.GetSeverityColor(),

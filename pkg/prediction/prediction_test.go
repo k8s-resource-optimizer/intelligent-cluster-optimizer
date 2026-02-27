@@ -184,6 +184,7 @@ func TestHoltWinters_Parameters(t *testing.T) {
 	params := result.Parameters
 	if params == nil {
 		t.Fatal("Expected parameters to be set")
+		return
 	}
 
 	// Alpha, beta, gamma should be in (0, 1)
