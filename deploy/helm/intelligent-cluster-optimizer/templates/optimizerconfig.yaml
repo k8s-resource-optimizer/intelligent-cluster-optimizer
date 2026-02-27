@@ -1,0 +1,39 @@
+{{- if .Values.optimizerConfig.create }}
+apiVersion: optimizer.cluster.io/v1alpha1
+kind: OptimizerConfig
+metadata:
+  name: {{ .Values.optimizerConfig.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "intelligent-cluster-optimizer.labels" . | nindent 4 }}
+spec:
+  enabled: true
+  targetNamespaces:
+    {{- toYaml .Values.optimizerConfig.targetNamespaces | nindent 4 }}
+
+  {{- if .Values.optimizerConfig.profile }}
+  profile: {{ .Values.optimizerConfig.profile }}
+  {{- end }}
+
+  dryRun: {{ .Values.optimizerConfig.dryRun }}
+
+  {{- if .Values.optimizerConfig.recommendations }}
+  recommendations:
+    {{- toYaml .Values.optimizerConfig.recommendations | nindent 4 }}
+  {{- end }}
+
+  {{- if .Values.optimizerConfig.resourceThresholds }}
+  resourceThresholds:
+    {{- toYaml .Values.optimizerConfig.resourceThresholds | nindent 4 }}
+  {{- end }}
+
+  {{- if .Values.optimizerConfig.circuitBreaker }}
+  circuitBreaker:
+    {{- toYaml .Values.optimizerConfig.circuitBreaker | nindent 4 }}
+  {{- end }}
+
+  {{- if .Values.optimizerConfig.notifications }}
+  notifications:
+    {{- toYaml .Values.optimizerConfig.notifications | nindent 4 }}
+  {{- end }}
+{{- end }}

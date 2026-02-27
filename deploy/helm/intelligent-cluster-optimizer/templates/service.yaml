@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "intelligent-cluster-optimizer.fullname" . }}
+  labels:
+    {{- include "intelligent-cluster-optimizer.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+  - port: {{ .Values.service.metricsPort }}
+    targetPort: metrics
+    protocol: TCP
+    name: metrics
+  {{- if .Values.webhook.enabled }}
+  - port: {{ .Values.service.port }}
+    targetPort: webhook
+    protocol: TCP
+    name: webhook
+  {{- end }}
+  selector:
+    {{- include "intelligent-cluster-optimizer.selectorLabels" . | nindent 4 }}

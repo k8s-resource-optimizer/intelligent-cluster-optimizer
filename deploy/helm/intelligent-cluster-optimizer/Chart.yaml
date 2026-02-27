@@ -1,0 +1,21 @@
+apiVersion: v2
+name: intelligent-cluster-optimizer
+description: Kubernetes resource optimization controller with intelligent recommendations
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - kubernetes
+  - optimization
+  - resource-management
+  - autoscaling
+  - cost-optimization
+home: https://github.com/k8s-resource-optimizer/intelligent-cluster-optimizer
+sources:
+  - https://github.com/k8s-resource-optimizer/intelligent-cluster-optimizer
+maintainers:
+  - name: Erva Şengül
+    email: ervasengul@example.com
+  - name: Azra Karakaya
+    email: azrakarakaya@example.com
+icon: https://raw.githubusercontent.com/k8s-resource-optimizer/intelligent-cluster-optimizer/main/docs/images/logo.png

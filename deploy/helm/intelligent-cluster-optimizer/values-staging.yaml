@@ -1,0 +1,33 @@
+# Staging overrides
+replicaCount: 1
+
+resources:
+  limits:
+    cpu: 750m
+    memory: 768Mi
+  requests:
+    cpu: 150m
+    memory: 192Mi
+
+controller:
+  workers: 2
+  logLevel: info
+
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+
+webhook:
+  enabled: true
+  certManager:
+    enabled: true
+
+optimizerConfig:
+  create: true
+  name: staging-optimizer
+  targetNamespaces:
+    - staging
+    - stg-*
+  profile: staging
+  dryRun: false

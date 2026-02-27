@@ -1,0 +1,54 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }} -n {{ .Release.Namespace }}
+  $ helm get all {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+{{- if .Values.optimizerConfig.create }}
+
+An OptimizerConfig named "{{ .Values.optimizerConfig.name }}" has been created.
+
+Check the status:
+  $ kubectl get optimizerconfig {{ .Values.optimizerConfig.name }} -n {{ .Release.Namespace }}
+
+View recommendations:
+  $ kubectl get optimizerconfig {{ .Values.optimizerConfig.name }} -n {{ .Release.Namespace }} -o yaml
+
+{{- end }}
+
+{{- if .Values.monitoring.serviceMonitor.enabled }}
+
+Prometheus ServiceMonitor has been created. Metrics will be scraped at:
+  - Interval: {{ .Values.monitoring.serviceMonitor.interval }}
+  - Path: {{ .Values.monitoring.metrics.path }}
+  - Port: {{ .Values.monitoring.metrics.port }}
+
+{{- end }}
+
+{{- if .Values.webhook.enabled }}
+
+Admission webhook is enabled. OptimizerConfig resources will be validated.
+
+{{- if not .Values.webhook.certManager.enabled }}
+⚠️  WARNING: Webhook is using self-signed certificates.
+For production, enable cert-manager integration:
+  webhook:
+    certManager:
+      enabled: true
+{{- end }}
+{{- end }}
+
+{{- if .Values.optimizerConfig.dryRun }}
+
+⚠️  DRY-RUN MODE ENABLED
+The optimizer will NOT apply any changes. It will only log recommendations.
+To enable actual optimizations, set:
+  optimizerConfig:
+    dryRun: false
+{{- end }}
+
+For more information, visit:
+  https://github.com/k8s-resource-optimizer/intelligent-cluster-optimizer

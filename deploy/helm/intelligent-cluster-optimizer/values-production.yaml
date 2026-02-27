@@ -1,0 +1,58 @@
+# Production overrides
+replicaCount: 2
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+controller:
+  workers: 4
+  logLevel: info
+  leaderElection:
+    enabled: true
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    labels:
+      prometheus: kube-prometheus
+
+webhook:
+  enabled: true
+  certManager:
+    enabled: true
+
+optimizerConfig:
+  create: true
+  name: production-optimizer
+  targetNamespaces:
+    - production
+    - prod-*
+  profile: production
+  dryRun: false
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - intelligent-cluster-optimizer
+          topologyKey: kubernetes.io/hostname

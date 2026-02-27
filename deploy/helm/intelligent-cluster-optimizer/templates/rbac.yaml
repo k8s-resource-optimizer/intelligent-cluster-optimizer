@@ -1,0 +1,72 @@
+{{- if .Values.rbac.create -}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "intelligent-cluster-optimizer.fullname" . }}
+  labels:
+    {{- include "intelligent-cluster-optimizer.labels" . | nindent 4 }}
+rules:
+# Pod resources
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list", "watch"]
+# Pod metrics
+- apiGroups: [""]
+  resources: ["pods/metrics"]
+  verbs: ["get"]
+# Workload resources
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets", "daemonsets"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+# Events
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+# Secrets (for notification SMTP passwords)
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list", "watch"]
+# OptimizerConfig CRD
+- apiGroups: ["optimizer.cluster.io"]
+  resources: ["optimizerconfigs"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+- apiGroups: ["optimizer.cluster.io"]
+  resources: ["optimizerconfigs/status"]
+  verbs: ["get", "update", "patch"]
+# HPA awareness
+- apiGroups: ["autoscaling"]
+  resources: ["horizontalpodautoscalers"]
+  verbs: ["get", "list", "watch"]
+# PDB awareness
+- apiGroups: ["policy"]
+  resources: ["poddisruptionbudgets"]
+  verbs: ["get", "list", "watch"]
+# Metrics API
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+# Leader election
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "intelligent-cluster-optimizer.fullname" . }}
+  labels:
+    {{- include "intelligent-cluster-optimizer.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "intelligent-cluster-optimizer.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "intelligent-cluster-optimizer.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}

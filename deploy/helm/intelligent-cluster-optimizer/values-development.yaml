@@ -1,0 +1,29 @@
+# Development overrides
+replicaCount: 1
+
+resources:
+  limits:
+    cpu: 250m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+controller:
+  workers: 1
+  logLevel: debug
+
+monitoring:
+  enabled: false
+
+webhook:
+  enabled: false
+
+optimizerConfig:
+  create: true
+  name: dev-optimizer
+  targetNamespaces:
+    - default
+    - dev-*
+  profile: development
+  dryRun: true

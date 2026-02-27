@@ -1,0 +1,37 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "intelligent-cluster-optimizer.fullname" . }}-webhook
+  labels:
+    {{- include "intelligent-cluster-optimizer.labels" . | nindent 4 }}
+  {{- if .Values.webhook.certManager.enabled }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "intelligent-cluster-optimizer.fullname" . }}-webhook-cert
+  {{- end }}
+webhooks:
+- name: validating.optimizerconfig.optimizer.cluster.io
+  admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ include "intelligent-cluster-optimizer.fullname" . }}
+      namespace: {{ .Release.Namespace }}
+      path: /validate-optimizer-cluster-io-v1alpha1-optimizerconfig
+      port: {{ .Values.webhook.port }}
+    {{- if not .Values.webhook.certManager.enabled }}
+    caBundle: ""
+    {{- end }}
+  failurePolicy: Fail
+  sideEffects: None
+  rules:
+  - apiGroups:
+    - optimizer.cluster.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - optimizerconfigs
+{{- end }}

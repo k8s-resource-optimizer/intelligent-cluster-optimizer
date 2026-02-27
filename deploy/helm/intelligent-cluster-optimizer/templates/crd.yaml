@@ -1,0 +1,378 @@
+{{- if .Values.crd.install }}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: optimizerconfigs.optimizer.cluster.io
+  labels:
+    {{- include "intelligent-cluster-optimizer.labels" . | nindent 4 }}
+spec:
+  group: optimizer.cluster.io
+  names:
+    kind: OptimizerConfig
+    listKind: OptimizerConfigList
+    plural: optimizerconfigs
+    singular: optimizerconfig
+    shortNames:
+    - optconfig
+    - oc
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            required:
+            - targetNamespaces
+            properties:
+              enabled:
+                type: boolean
+                default: true
+              targetNamespaces:
+                type: array
+                minItems: 1
+                items:
+                  type: string
+              profile:
+                type: string
+                enum:
+                - production
+                - staging
+                - development
+                - test
+                - custom
+              profileOverrides:
+                type: object
+                properties:
+                  minConfidence:
+                    type: number
+                    minimum: 0
+                    maximum: 100
+                  maxChangePercent:
+                    type: number
+                    minimum: 0
+                    maximum: 100
+                  requireApproval:
+                    type: boolean
+                  applyDelay:
+                    type: string
+                  dryRun:
+                    type: boolean
+              strategy:
+                type: string
+                enum:
+                - aggressive
+                - balanced
+                - conservative
+                default: balanced
+              dryRun:
+                type: boolean
+                default: false
+              maintenanceWindows:
+                type: array
+                items:
+                  type: object
+                  required:
+                  - schedule
+                  - duration
+                  properties:
+                    schedule:
+                      type: string
+                    duration:
+                      type: string
+                    timezone:
+                      type: string
+                      default: UTC
+              resourceThresholds:
+                type: object
+                properties:
+                  cpu:
+                    type: object
+                    properties:
+                      min:
+                        type: string
+                      max:
+                        type: string
+                  memory:
+                    type: object
+                    properties:
+                      min:
+                        type: string
+                      max:
+                        type: string
+              recommendations:
+                type: object
+                properties:
+                  cpuPercentile:
+                    type: integer
+                    minimum: 50
+                    maximum: 99
+                    default: 95
+                  memoryPercentile:
+                    type: integer
+                    minimum: 50
+                    maximum: 99
+                    default: 95
+                  minSamples:
+                    type: integer
+                    minimum: 10
+                    default: 100
+                  safetyMargin:
+                    type: number
+                    minimum: 1.0
+                    maximum: 3.0
+                    default: 1.2
+                  historyDuration:
+                    type: string
+                    default: "24h"
+              updateStrategy:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum:
+                    - InPlace
+                    - RollingUpdate
+                    default: InPlace
+                  rollingUpdate:
+                    type: object
+                    properties:
+                      maxUnavailable:
+                        type: string
+                      maxSurge:
+                        type: string
+              hpaAwareness:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                    default: true
+                  conflictPolicy:
+                    type: string
+                    enum:
+                    - Skip
+                    - Override
+                    - Warn
+                    default: Skip
+              pdbAwareness:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                    default: true
+                  respectMinAvailable:
+                    type: boolean
+                    default: true
+              circuitBreaker:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                    default: true
+                  errorThreshold:
+                    type: integer
+                    minimum: 1
+                    maximum: 20
+                    default: 5
+                  successThreshold:
+                    type: integer
+                    minimum: 1
+                    maximum: 10
+                    default: 3
+                  timeout:
+                    type: string
+                    default: "5m"
+              gitOpsExport:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                    default: false
+                  format:
+                    type: string
+                    enum:
+                    - kustomize
+                    - kustomize-json6902
+                    - helm
+                    default: kustomize
+                  outputPath:
+                    type: string
+                  autoCommit:
+                    type: boolean
+                  gitRepository:
+                    type: object
+                    properties:
+                      url:
+                        type: string
+                      branch:
+                        type: string
+                      baseBranch:
+                        type: string
+                      commitMessage:
+                        type: string
+                      authSecretName:
+                        type: string
+                      createPR:
+                        type: boolean
+                      prTitle:
+                        type: string
+                      prBody:
+                        type: string
+              targetResources:
+                type: array
+                items:
+                  type: string
+                  enum:
+                  - deployments
+                  - statefulsets
+                  - daemonsets
+              excludeWorkloads:
+                type: array
+                items:
+                  type: string
+              notifications:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                    default: false
+                  events:
+                    type: array
+                    items:
+                      type: string
+                      enum:
+                      - RecommendationApplied
+                      - OOMDetected
+                      - MemoryLeakDetected
+                      - CircuitBreakerTriggered
+                      - SLAViolation
+                      - RollbackExecuted
+                  slack:
+                    type: object
+                    properties:
+                      webhookURL:
+                        type: string
+                  email:
+                    type: object
+                    properties:
+                      smtpHost:
+                        type: string
+                      smtpPort:
+                        type: integer
+                        minimum: 1
+                        maximum: 65535
+                        default: 587
+                      username:
+                        type: string
+                      passwordSecretRef:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                      from:
+                        type: string
+                      to:
+                        type: array
+                        minItems: 1
+                        items:
+                          type: string
+                      useTLS:
+                        type: boolean
+                        default: true
+                      insecureSkipVerify:
+                        type: boolean
+                        default: false
+                  webhooks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        url:
+                          type: string
+                        headers:
+                          type: object
+                          additionalProperties:
+                            type: string
+                        timeout:
+                          type: string
+          status:
+            type: object
+            properties:
+              phase:
+                type: string
+                enum:
+                - Pending
+                - Active
+                - Paused
+                - CircuitOpen
+                - Error
+              observedGeneration:
+                type: integer
+              lastRecommendationTime:
+                type: string
+                format: date-time
+              lastUpdateTime:
+                type: string
+                format: date-time
+              circuitState:
+                type: string
+                enum:
+                - Closed
+                - Open
+                - HalfOpen
+                default: Closed
+              consecutiveErrors:
+                type: integer
+              consecutiveSuccesses:
+                type: integer
+              totalRecommendations:
+                type: integer
+              totalUpdatesApplied:
+                type: integer
+              totalUpdatesFailed:
+                type: integer
+              conditions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                    status:
+                      type: string
+                    lastTransitionTime:
+                      type: string
+                      format: date-time
+                    reason:
+                      type: string
+                    message:
+                      type: string
+              activeMaintenanceWindow:
+                type: boolean
+              nextMaintenanceWindow:
+                type: string
+                format: date-time
+    additionalPrinterColumns:
+    - name: Strategy
+      type: string
+      jsonPath: .spec.strategy
+    - name: Dry-Run
+      type: boolean
+      jsonPath: .spec.dryRun
+    - name: Phase
+      type: string
+      jsonPath: .status.phase
+    - name: Age
+      type: date
+      jsonPath: .metadata.creationTimestamp
+    subresources:
+      status: {}
+{{- end }}
