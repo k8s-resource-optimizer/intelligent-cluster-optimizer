@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"intelligent-cluster-optimizer/pkg/models"
+	"k8s.io/klog/v2"
 )
 
 type InMemoryStorage struct {
@@ -193,17 +195,23 @@ func hasPrefix(s, prefix string) bool {
 	return s[:len(prefix)] == prefix
 }
 
-// startGarbageCollector periodically cleans up old metrics from storage
-func (s *InMemoryStorage) StartGarbageCollector(interval time.Duration, maxAge time.Duration) {
+// StartGarbageCollector periodically cleans up old metrics from storage.
+// It stops when ctx is cancelled, allowing clean shutdown.
+func (s *InMemoryStorage) StartGarbageCollector(ctx context.Context, interval time.Duration, maxAge time.Duration) {
 	ticker := time.NewTicker(interval)
 
 	go func() {
 		defer ticker.Stop()
 
-		for range ticker.C {
-			removed := s.Cleanup(maxAge)
-			if removed > 0 {
-				println("[GC] Cleaned up", removed, "old metric entries")
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				removed := s.Cleanup(maxAge)
+				if removed > 0 {
+					klog.Infof("[GC] Cleaned up %d old metric entries", removed)
+				}
 			}
 		}
 	}()

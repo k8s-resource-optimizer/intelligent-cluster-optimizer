@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -82,7 +83,9 @@ func main() {
 		}
 	}()
 
-	go store.StartGarbageCollector(1*time.Hour, 24*time.Hour)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	store.StartGarbageCollector(ctx, 1*time.Hour, 24*time.Hour)
 
 	// 4. Setup signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
