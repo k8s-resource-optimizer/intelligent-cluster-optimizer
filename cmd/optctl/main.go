@@ -25,6 +25,7 @@ var (
 	kubeconfig    string
 	container     string
 	historyFile   string
+	metricsFile   string
 	outputJSON    bool
 	pricingModel  string
 	allNamespaces bool
@@ -35,12 +36,14 @@ var (
 )
 
 const defaultHistoryFile = "/var/lib/optimizer/rollback-history.json"
+const defaultMetricsFile = "/var/lib/optimizer/metrics.json"
 
 func main() {
 	klog.InitFlags(nil)
 	flag.StringVar(&kubeconfig, "kubeconfig", filepath.Join(os.Getenv("HOME"), ".kube", "config"), "Path to kubeconfig")
 	flag.StringVar(&container, "container", "", "Container name (default: all containers)")
 	flag.StringVar(&historyFile, "history-file", defaultHistoryFile, "Path to rollback history file")
+	flag.StringVar(&metricsFile, "metrics-file", defaultMetricsFile, "Path to metrics storage file (used by trends command)")
 	flag.BoolVar(&outputJSON, "json", false, "Output in JSON format")
 	flag.StringVar(&pricingModel, "pricing", "default", "Pricing model (aws-us-east-1, gcp-us-central1, azure-eastus, default)")
 	flag.BoolVar(&allNamespaces, "all-namespaces", false, "List across all namespaces (for cost command)")
@@ -62,6 +65,11 @@ func main() {
 	case "history":
 		if err := handleHistory(); err != nil {
 			klog.Fatalf("History command failed: %v", err)
+		}
+		return
+	case "trends":
+		if err := handleTrends(flag.Args()[1:]); err != nil {
+			klog.Fatalf("Trends analysis failed: %v", err)
 		}
 		return
 	case "cost":
@@ -132,6 +140,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "  cost pricing                          Show available pricing models\n")
 	fmt.Fprintf(os.Stderr, "  report cost [namespace]               Generate detailed cost optimization report\n")
 	fmt.Fprintf(os.Stderr, "  simulate [namespace]                  Run what-if simulation for optimization\n")
+	fmt.Fprintf(os.Stderr, "  trends <namespace> [workload]         Analyze historical trends and forecast capacity\n")
 	fmt.Fprintf(os.Stderr, "  history [resource]                    Show optimization history\n")
 	fmt.Fprintf(os.Stderr, "  rollback <namespace/kind/name>        Rollback workload to previous config\n")
 	fmt.Fprintf(os.Stderr, "\nOptions:\n")
@@ -155,6 +164,8 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "  optctl report cost --format=html default > report.html   # HTML report\n")
 	fmt.Fprintf(os.Stderr, "  optctl simulate default                         # Run simulation\n")
 	fmt.Fprintf(os.Stderr, "  optctl simulate --strategy=aggressive --days=30 default  # Aggressive 30-day simulation\n")
+	fmt.Fprintf(os.Stderr, "  optctl trends production                        # Analyze trends for namespace\n")
+	fmt.Fprintf(os.Stderr, "  optctl trends production api-server --format=html > trends.html  # Workload trend report\n")
 	fmt.Fprintf(os.Stderr, "  optctl history                                  # Show all history\n")
 	fmt.Fprintf(os.Stderr, "  optctl rollback default/Deployment/nginx        # Rollback workload\n")
 }
