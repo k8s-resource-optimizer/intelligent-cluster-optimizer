@@ -61,17 +61,17 @@ rules:
   verbs: ["get", "list"]
 
 # Custom resources (OptimizerConfig)
-- apiGroups: ["optimizer.intelligent-cluster-optimizer.io"]
+- apiGroups: ["optimizer.cluster.io"]
   resources:
     - optimizerconfigs
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
-- apiGroups: ["optimizer.intelligent-cluster-optimizer.io"]
+- apiGroups: ["optimizer.cluster.io"]
   resources:
     - optimizerconfigs/status
   verbs: ["get", "update", "patch"]
 
-- apiGroups: ["optimizer.intelligent-cluster-optimizer.io"]
+- apiGroups: ["optimizer.cluster.io"]
   resources:
     - optimizerconfigs/finalizers
   verbs: ["update"]

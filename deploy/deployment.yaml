@@ -36,12 +36,11 @@ spec:
         image: intelligent-cluster-optimizer:latest
         imagePullPolicy: IfNotPresent
         command:
-          - /intelligent-cluster-optimizer
+          - /controller
         args:
-          - --metrics-addr=:8080
-          - --enable-leader-election
-          - --leader-election-namespace=intelligent-optimizer-system
-          - --log-level=info
+          - --kubeconfig=
+          - --lease-lock-namespace=intelligent-optimizer-system
+          - --namespace=intelligent-optimizer-system
         ports:
         - name: metrics
           containerPort: 8080
@@ -70,20 +69,4 @@ spec:
           capabilities:
             drop:
               - ALL
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8081
-          initialDelaySeconds: 15
-          periodSeconds: 20
-          timeoutSeconds: 3
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /readyz
-            port: 8081
-          initialDelaySeconds: 5
-          periodSeconds: 10
-          timeoutSeconds: 3
-          failureThreshold: 3
       terminationGracePeriodSeconds: 10
