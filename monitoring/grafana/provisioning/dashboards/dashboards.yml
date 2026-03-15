@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: "optimizer-tests"
+    orgId: 1
+    folder: "Optimizer"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    options:
+      path: /var/lib/grafana/dashboards

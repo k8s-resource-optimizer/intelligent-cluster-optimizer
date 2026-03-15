@@ -1,0 +1,235 @@
+{
+  "title": "WP9 — Testing & Validation",
+  "uid": "optimizer-wp9-v2",
+  "schemaVersion": 38,
+  "version": 23,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "tags": ["optimizer", "wp9", "testing"],
+  "templating": {
+    "list": [
+      {
+        "name": "suite",
+        "label": "Suite",
+        "type": "custom",
+        "query": "all,unit,integration,e2e",
+        "current": { "text": "all", "value": "$__all" },
+        "options": [
+          { "text": "All", "value": "$__all", "selected": true },
+          { "text": "unit", "value": "unit", "selected": false },
+          { "text": "integration", "value": "integration", "selected": false },
+          { "text": "e2e", "value": "e2e", "selected": false }
+        ],
+        "includeAll": true,
+        "allValue": "unit|integration|e2e",
+        "multi": false,
+        "hide": 0,
+        "refresh": 0
+      },
+      {
+        "name": "component",
+        "label": "Component",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+        "query": "label_values(optimizer_test_result, component)",
+        "current": {},
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": false,
+        "hide": 0,
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+
+    { "id": 100, "type": "row", "title": "WP9 Overview — Success Criteria", "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 1, "title": "Unit Coverage", "type": "gauge",
+      "description": "WP9 success: >80%",
+      "gridPos": { "x": 0, "y": 1, "w": 6, "h": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent", "min": 0, "max": 100,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null }, { "color": "yellow", "value": 60 }, { "color": "green", "value": 80 }
+          ]}
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": true, "showThresholdMarkers": true },
+      "targets": [{ "expr": "max by (suite) (optimizer_suite_coverage_percent{suite=\"unit\"})", "legendFormat": "Unit" }]
+    },
+
+    {
+      "id": 2, "title": "Integration Coverage", "type": "gauge",
+      "description": "WP9 success: >80%",
+      "gridPos": { "x": 6, "y": 1, "w": 6, "h": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent", "min": 0, "max": 100,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null }, { "color": "yellow", "value": 60 }, { "color": "green", "value": 80 }
+          ]}
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": true, "showThresholdMarkers": true },
+      "targets": [{ "expr": "max by (suite) (optimizer_suite_coverage_percent{suite=\"integration\"})", "legendFormat": "Integration" }]
+    },
+
+    {
+      "id": 3, "title": "Tests Passed", "type": "stat",
+      "gridPos": { "x": 16, "y": 1, "w": 4, "h": 6 },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }, "color": { "mode": "thresholds" } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "horizontal", "textMode": "value_and_name", "colorMode": "background" },
+      "targets": [
+        { "expr": "max by (suite) (optimizer_suite_tests_passed{suite=\"unit\"})", "legendFormat": "Unit" },
+        { "expr": "max by (suite) (optimizer_suite_tests_passed{suite=\"integration\"})", "legendFormat": "Integration" },
+        { "expr": "max by (suite) (optimizer_suite_tests_passed{suite=\"e2e\"})", "legendFormat": "E2E" }
+      ]
+    },
+
+    {
+      "id": 4, "title": "Tests Failed", "type": "stat",
+      "gridPos": { "x": 20, "y": 1, "w": 4, "h": 6 },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }, "color": { "mode": "thresholds" } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "horizontal", "textMode": "value_and_name", "colorMode": "background" },
+      "targets": [
+        { "expr": "max by (suite) (optimizer_suite_tests_failed{suite=\"unit\"})", "legendFormat": "Unit" },
+        { "expr": "max by (suite) (optimizer_suite_tests_failed{suite=\"integration\"})", "legendFormat": "Integration" },
+        { "expr": "max by (suite) (optimizer_suite_tests_failed{suite=\"e2e\"})", "legendFormat": "E2E" }
+      ]
+    },
+
+    {
+      "id": 6, "title": "Last Run", "type": "stat",
+      "gridPos": { "x": 12, "y": 1, "w": 4, "h": 6 },
+      "fieldConfig": { "defaults": { "unit": "dateTimeFromNow", "color": { "mode": "fixed", "fixedColor": "text" } } },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "textMode": "value_and_name", "colorMode": "none" },
+      "targets": [
+        { "expr": "max by (suite) (optimizer_suite_last_run_timestamp{suite=\"unit\"}) * 1000", "legendFormat": "Unit" },
+        { "expr": "max by (suite) (optimizer_suite_last_run_timestamp{suite=\"integration\"}) * 1000", "legendFormat": "Integration" },
+        { "expr": "max by (suite) (optimizer_suite_last_run_timestamp{suite=\"e2e\"}) * 1000", "legendFormat": "E2E" }
+      ]
+    },
+
+    { "id": 105, "type": "row", "title": "Test Duration", "gridPos": { "x": 0, "y": 7, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 50, "title": "Suite Duration Over Time", "type": "timeseries",
+      "description": "How long each test suite took to run (seconds). Lower is better.",
+      "timeFrom": "6h",
+      "gridPos": { "x": 0, "y": 8, "w": 16, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "lineWidth": 2, "fillOpacity": 10, "pointSize": 6, "showPoints": "always", "spanNulls": true },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+        }
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        { "expr": "max by (suite) (optimizer_suite_duration_ms{suite=\"unit\"}) / 1000",        "legendFormat": "Unit" },
+        { "expr": "max by (suite) (optimizer_suite_duration_ms{suite=\"integration\"}) / 1000", "legendFormat": "Integration" },
+        { "expr": "max by (suite) (optimizer_suite_duration_ms{suite=\"e2e\"}) / 1000",         "legendFormat": "E2E" }
+      ]
+    },
+
+    {
+      "id": 51, "title": "Latest Duration", "type": "stat",
+      "description": "Most recent run duration per suite.",
+      "gridPos": { "x": 16, "y": 8, "w": 8, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": { "mode": "fixed", "fixedColor": "text" }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "horizontal", "textMode": "value_and_name", "colorMode": "none" },
+      "targets": [
+        { "expr": "max by (suite) (optimizer_suite_duration_ms{suite=\"unit\"}) / 1000",        "legendFormat": "Unit" },
+        { "expr": "max by (suite) (optimizer_suite_duration_ms{suite=\"integration\"}) / 1000", "legendFormat": "Integration" },
+        { "expr": "max by (suite) (optimizer_suite_duration_ms{suite=\"e2e\"}) / 1000",         "legendFormat": "E2E" }
+      ]
+    },
+
+    { "id": 106, "type": "row", "title": "Test Inventory — by Component", "gridPos": { "x": 0, "y": 16, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 60,
+      "title": "Tests per Component",
+      "type": "bargauge",
+      "description": "Total number of tests per component across all suites.",
+      "gridPos": { "x": 0, "y": 17, "w": 8, "h": 12 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "valueMode": "color",
+        "showUnfilled": true,
+        "namePlacement": "auto",
+        "legendDisplayMode": "hidden"
+      },
+      "targets": [
+        { "expr": "sum by (component) (max by (component, suite) (optimizer_component_tests_total))", "legendFormat": "{{component}}", "instant": true, "refId": "A" }
+      ]
+    },
+
+    {
+      "id": 61,
+      "title": "All Tests — Detail List",
+      "description": "Every test name, which component it belongs to, and which suite it runs in.",
+      "type": "table",
+      "gridPos": { "x": 8, "y": 17, "w": 16, "h": 12 },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Suite" },    "properties": [{ "id": "custom.width", "value": 100 }] },
+          { "matcher": { "id": "byName", "options": "Component" },"properties": [{ "id": "custom.width", "value": 220 }] },
+          { "matcher": { "id": "byName", "options": "Test" },     "properties": [{ "id": "custom.width", "value": 400 }] }
+        ]
+      },
+      "options": { "sortBy": [{ "displayName": "Component", "desc": false }] },
+      "targets": [{ "expr": "max by (suite, component, test) (optimizer_test_result{suite=~\"$suite\", component=~\"$component\"})", "legendFormat": "", "instant": true, "refId": "A", "format": "table" }],
+      "transformations": [
+        { "id": "organize", "options": {
+          "excludeByName": { "Time": true, "__name__": true, "job": true, "instance": true, "run_id": true, "Value": true },
+          "renameByName": { "suite": "Suite", "component": "Component", "test": "Test" }
+        }}
+      ]
+    },
+
+    { "id": 103, "type": "row", "title": "Failed Tests", "gridPos": { "x": 0, "y": 29, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 30, "title": "Failed Tests", "type": "table",
+      "gridPos": { "x": 0, "y": 30, "w": 24, "h": 10 },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [{
+          "matcher": { "id": "byName", "options": "Result" },
+          "properties": [
+            { "id": "mappings", "value": [{ "type": "value", "options": { "0": { "text": "FAIL", "color": "red" } } }] },
+            { "id": "custom.displayMode", "value": "color-background" }
+          ]
+        }]
+      },
+      "options": { "noValue": "All tests passing" },
+      "targets": [{ "expr": "optimizer_test_result == 0", "legendFormat": "", "instant": true, "refId": "A" }],
+      "transformations": [
+        { "id": "labelsToFields", "options": { "mode": "columns" } },
+        { "id": "organize", "options": {
+          "excludeByName": { "Time": true, "__name__": true, "job": true, "instance": true, "run_id": true },
+          "renameByName": { "suite": "Suite", "component": "Component", "test": "Test", "Value #A": "Result" }
+        }}
+      ]
+    }
+  ]
+}
