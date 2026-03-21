@@ -48,3 +48,7 @@ temp/
 # Environment files (may contain secrets)
 .env
 .env.local
+
+# Python cache
+__pycache__/
+*.pyc

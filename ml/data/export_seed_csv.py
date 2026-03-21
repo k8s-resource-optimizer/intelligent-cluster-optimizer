@@ -59,6 +59,6 @@ def export_csv(data, output_path):
 
 
 if __name__ == "__main__":
-    output = "scripts/seed_cpu_metrics.csv"
+    output = "ml/data/seed_cpu_metrics.csv"
     data = fetch_cpu_metrics()
     export_csv(data, output)

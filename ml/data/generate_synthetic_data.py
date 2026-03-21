@@ -4,8 +4,8 @@ import datetime
 import numpy as np
 import pandas as pd
 
-SEED_CSV = "scripts/seed_cpu_metrics.csv"
-OUTPUT_CSV = "scripts/synthetic_cpu_metrics.csv"
+SEED_CSV = "ml/data/seed_cpu_metrics.csv"
+OUTPUT_CSV = "ml/data/synthetic_cpu_metrics.csv"
 TARGET_ROWS = 50_000
 NOISE_STD = 0.01       # Standard deviation for Gaussian noise
 SPIKE_PROB = 0.02      # Probability of a spike at any given point
