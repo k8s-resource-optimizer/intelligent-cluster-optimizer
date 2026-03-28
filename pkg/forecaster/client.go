@@ -163,7 +163,7 @@ func Decide(forecast []ForecastPoint, currentReplicas int32, cfg ScalerConfig) S
 	}
 	sustained := sumMedian / float64(len(forecast))
 
-	scaleUp   := peakHigh > cfg.ScaleUpThreshold
+	scaleUp := peakHigh > cfg.ScaleUpThreshold
 	scaleDown := !scaleUp && sustained < cfg.ScaleDownThreshold
 
 	var desired int32
@@ -269,7 +269,7 @@ func NewReconciler(fc *ForecastClient, hs *HorizontalScaler, cfg ScalerConfig, l
 func (r *Reconciler) Run(
 	ctx context.Context,
 	namespace, deployment string,
-	cpuHistory      []float64,
+	cpuHistory []float64,
 	currentReplicas int32,
 ) error {
 	pr, err := r.forecast.Predict(ctx, cpuHistory)

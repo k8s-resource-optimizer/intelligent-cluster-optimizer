@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/zap/zaptest"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"go.uber.org/zap/zaptest"
 
 	"intelligent-cluster-optimizer/pkg/forecaster"
 )
@@ -65,7 +65,7 @@ func TestPredict_OK(t *testing.T) {
 	srv := mockServer(t, http.StatusOK, want)
 	defer srv.Close()
 
-	c   := forecaster.NewForecastClient(srv.URL, 5*time.Second, zaptest.NewLogger(t))
+	c := forecaster.NewForecastClient(srv.URL, 5*time.Second, zaptest.NewLogger(t))
 	got, err := c.Predict(context.Background(), cpuSamples(60, 0.4))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -180,7 +180,7 @@ func TestDecide_EmptyForecast(t *testing.T) {
 
 func TestScale_Up(t *testing.T) {
 	kube := fake.NewSimpleClientset(newDeployment("default", "app", 2))
-	s    := forecaster.NewHorizontalScaler(kube, zaptest.NewLogger(t))
+	s := forecaster.NewHorizontalScaler(kube, zaptest.NewLogger(t))
 
 	changed, err := s.Scale(context.Background(), "default", "app",
 		forecaster.ScaleDecision{ScaleUp: true, DesiredReplicas: 5})
@@ -198,7 +198,7 @@ func TestScale_Up(t *testing.T) {
 
 func TestScale_NoOp(t *testing.T) {
 	kube := fake.NewSimpleClientset(newDeployment("default", "app", 3))
-	s    := forecaster.NewHorizontalScaler(kube, zaptest.NewLogger(t))
+	s := forecaster.NewHorizontalScaler(kube, zaptest.NewLogger(t))
 
 	changed, err := s.Scale(context.Background(), "default", "app",
 		forecaster.ScaleDecision{DesiredReplicas: 3})
@@ -212,7 +212,7 @@ func TestScale_NoOp(t *testing.T) {
 
 func TestScale_DeploymentNotFound(t *testing.T) {
 	kube := fake.NewSimpleClientset()
-	s    := forecaster.NewHorizontalScaler(kube, zaptest.NewLogger(t))
+	s := forecaster.NewHorizontalScaler(kube, zaptest.NewLogger(t))
 
 	_, err := s.Scale(context.Background(), "default", "missing",
 		forecaster.ScaleDecision{DesiredReplicas: 3})
