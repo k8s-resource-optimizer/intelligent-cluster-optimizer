@@ -156,7 +156,11 @@ def main(cfg: Cfg = CFG) -> None:
         device_map = "auto",
         dtype = torch.float16 if cfg.fp16 else torch.float32,
     )
-    model = pipeline.model
+    # pipeline.model is ChronosModel (inference wrapper).
+    # pipeline.model.model is the underlying T5ForConditionalGeneration
+    # which accepts the standard (input_ids, attention_mask, labels) signature
+    # expected by HuggingFace Trainer.
+    model = pipeline.model.model
 
     # 5. Train
     args = TrainingArguments(
