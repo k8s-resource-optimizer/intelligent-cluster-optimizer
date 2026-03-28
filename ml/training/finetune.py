@@ -82,6 +82,8 @@ def build_tokenizer(cfg: Cfg) -> MeanScaleUniformBins:
         low_limit=-1.001,
         high_limit=1.001,
         config=ChronosConfig(
+            tokenizer_class   = "MeanScaleUniformBins",
+            tokenizer_kwargs  = {"low_limit": -1.001, "high_limit": 1.001},
             context_length    = cfg.context_length,
             prediction_length = cfg.prediction_length,
             n_tokens          = cfg.n_tokens,
