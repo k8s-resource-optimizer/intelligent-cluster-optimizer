@@ -11,7 +11,9 @@ import (
 
 	"intelligent-cluster-optimizer/pkg/apis/optimizer/v1alpha1"
 	"intelligent-cluster-optimizer/pkg/controller"
+	"intelligent-cluster-optimizer/pkg/forecaster"
 
+	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -34,6 +36,7 @@ var (
 	leaseDuration time.Duration
 	renewDeadline time.Duration
 	retryPeriod   time.Duration
+	mlServiceURL  string
 )
 
 func main() {
@@ -47,6 +50,9 @@ func main() {
 	flag.DurationVar(&leaseDuration, "lease-duration", 15*time.Second, "Lease duration")
 	flag.DurationVar(&renewDeadline, "renew-deadline", 10*time.Second, "Renew deadline")
 	flag.DurationVar(&retryPeriod, "retry-period", 2*time.Second, "Retry period")
+	flag.StringVar(&mlServiceURL, "ml-service-url", os.Getenv("ML_SERVICE_URL"),
+		"Base URL of the Chronos-2 ML forecasting service (e.g. http://ml-service:8080). "+
+			"Falls back to Holt-Winters when empty or unreachable.")
 	flag.Parse()
 
 	if err := v1alpha1.AddToScheme(scheme.Scheme); err != nil {
@@ -79,6 +85,28 @@ func main() {
 	})
 
 	reconciler := controller.NewReconciler(kubeClient, eventRecorder)
+
+	// Wire up ML forecaster with Holt-Winters fallback.
+	// The FallbackForecaster tries the Chronos-2 service first; on any error it
+	// transparently falls back to the local Holt-Winters predictor so the controller
+	// keeps scaling even when the ML service is not yet deployed.
+	zapLogger, err := zap.NewProduction()
+	if err != nil {
+		klog.Fatalf("Failed to create zap logger: %v", err)
+	}
+	defer zapLogger.Sync() //nolint:errcheck
+	hwForecaster := forecaster.NewHoltWintersForecaster(zapLogger)
+	var cpuForecaster forecaster.CpuForecaster = hwForecaster
+	if mlServiceURL != "" {
+		mlClient := forecaster.NewForecastClient(mlServiceURL, 10*time.Second, zapLogger)
+		cpuForecaster = forecaster.NewFallbackForecaster(mlClient, hwForecaster, zapLogger)
+		klog.Infof("ML forecaster enabled: %s (Holt-Winters fallback active)", mlServiceURL)
+	} else {
+		klog.Info("ML_SERVICE_URL not set — using Holt-Winters forecaster only")
+	}
+	mlScaler := forecaster.NewHorizontalScaler(kubeClient, zapLogger)
+	reconciler.SetMLForecaster(cpuForecaster, mlScaler)
+
 	ctrl := controller.NewOptimizerController(kubeClient, optimizerClient, reconciler, eventRecorder, namespace)
 
 	ctx, cancel := context.WithCancel(context.Background())

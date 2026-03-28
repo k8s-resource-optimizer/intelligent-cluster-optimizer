@@ -106,6 +106,50 @@ type OptimizerConfigSpec struct {
 	// Backup configures automatic backup of metrics storage
 	// +optional
 	Backup *BackupConfig `json:"backup,omitempty"`
+
+	// MLForecaster configures the Chronos-2 ML-based horizontal scaling forecaster
+	// +optional
+	MLForecaster *MLForecasterConfig `json:"mlForecaster,omitempty"`
+}
+
+// MLForecasterConfig configures integration with the Chronos-2 FastAPI forecasting service.
+// When the ML service is unavailable, the controller automatically falls back to Holt-Winters.
+type MLForecasterConfig struct {
+	// Enabled controls whether ML-based forecasting drives horizontal scaling
+	// +optional
+	// +kubebuilder:default=false
+	Enabled bool `json:"enabled"`
+
+	// ServiceURL is the base URL of the Chronos-2 FastAPI service
+	// Example: "http://ml-service.ml-system.svc.cluster.local:8080"
+	// +optional
+	ServiceURL string `json:"serviceURL,omitempty"`
+
+	// TimeoutSeconds is the per-request timeout for the ML service. Default 10
+	// +optional
+	TimeoutSeconds int `json:"timeoutSeconds,omitempty"`
+
+	// ScaleUpThreshold triggers scale-up when forecast p90 peak exceeds this value (0-1 range).
+	// Default 0.75
+	// +optional
+	ScaleUpThreshold float64 `json:"scaleUpThreshold,omitempty"`
+
+	// ScaleDownThreshold triggers scale-down when forecast p50 mean is below this value (0-1 range).
+	// Default 0.30
+	// +optional
+	ScaleDownThreshold float64 `json:"scaleDownThreshold,omitempty"`
+
+	// CPUPerReplica is the assumed CPU utilisation per replica (0-1 range). Default 0.25
+	// +optional
+	CPUPerReplica float64 `json:"cpuPerReplica,omitempty"`
+
+	// MinReplicas is the minimum number of replicas. Default 1
+	// +optional
+	MinReplicas int32 `json:"minReplicas,omitempty"`
+
+	// MaxReplicas is the maximum number of replicas. Default 10
+	// +optional
+	MaxReplicas int32 `json:"maxReplicas,omitempty"`
 }
 
 // OptimizationStrategy defines how aggressive the optimizer should be

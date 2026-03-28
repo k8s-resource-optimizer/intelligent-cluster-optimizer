@@ -23,7 +23,87 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"intelligent-cluster-optimizer/pkg/prediction"
 )
+
+// ── Forecaster interface ───────────────────────────────────────────────────────
+
+// CpuForecaster is the interface for CPU load forecasting backends.
+// Both ForecastClient (Chronos ML service) and HoltWintersForecaster implement it.
+type CpuForecaster interface {
+	Predict(ctx context.Context, cpuValues []float64) (*PredictResponse, error)
+}
+
+// ── Holt-Winters fallback ──────────────────────────────────────────────────────
+
+// HoltWintersForecaster adapts pkg/prediction.HoltWinters to the CpuForecaster
+// interface so it can serve as a fallback when the ML service is unavailable.
+type HoltWintersForecaster struct {
+	logger *zap.Logger
+}
+
+// NewHoltWintersForecaster constructs a HoltWintersForecaster.
+func NewHoltWintersForecaster(logger *zap.Logger) *HoltWintersForecaster {
+	return &HoltWintersForecaster{logger: logger}
+}
+
+// Predict runs Holt-Winters on cpuValues and converts the result to PredictResponse.
+// The prediction horizon matches the ML service default of 15 steps.
+func (h *HoltWintersForecaster) Predict(_ context.Context, cpuValues []float64) (*PredictResponse, error) {
+	const horizon = 15
+	hw := prediction.NewHoltWinters()
+	result, err := hw.FitPredict(cpuValues, horizon)
+	if err != nil {
+		return nil, fmt.Errorf("holt-winters: %w", err)
+	}
+
+	points := make([]ForecastPoint, len(result.Forecasts))
+	for i, f := range result.Forecasts {
+		points[i] = ForecastPoint{
+			Step:   i + 1,
+			Low:    f.LowerBound,
+			Median: f.Value,
+			High:   f.UpperBound,
+		}
+	}
+
+	h.logger.Info("holt-winters forecast produced",
+		zap.Int("context_len", len(cpuValues)),
+		zap.Int("pred_len", len(points)),
+	)
+
+	return &PredictResponse{
+		Forecast:         points,
+		ContextLength:    len(cpuValues),
+		PredictionLength: len(points),
+	}, nil
+}
+
+// ── Fallback forecaster ────────────────────────────────────────────────────────
+
+// FallbackForecaster tries the primary forecaster (Chronos ML service) and falls
+// back to the secondary (Holt-Winters) when the primary returns an error.
+type FallbackForecaster struct {
+	primary   CpuForecaster
+	secondary CpuForecaster
+	logger    *zap.Logger
+}
+
+// NewFallbackForecaster constructs a FallbackForecaster.
+func NewFallbackForecaster(primary, secondary CpuForecaster, logger *zap.Logger) *FallbackForecaster {
+	return &FallbackForecaster{primary: primary, secondary: secondary, logger: logger}
+}
+
+// Predict tries primary; on any error logs a warning and delegates to secondary.
+func (f *FallbackForecaster) Predict(ctx context.Context, cpuValues []float64) (*PredictResponse, error) {
+	pr, err := f.primary.Predict(ctx, cpuValues)
+	if err != nil {
+		f.logger.Warn("ML service unavailable, falling back to Holt-Winters", zap.Error(err))
+		return f.secondary.Predict(ctx, cpuValues)
+	}
+	return pr, nil
+}
 
 // ── HTTP client ────────────────────────────────────────────────────────────────
 
@@ -252,16 +332,17 @@ func (s *HorizontalScaler) Scale(
 
 // ── Reconciler ─────────────────────────────────────────────────────────────────
 
-// Reconciler ties together the forecast client and horizontal scaler.
+// Reconciler ties together a CpuForecaster and a horizontal scaler.
 type Reconciler struct {
-	forecast *ForecastClient
+	forecast CpuForecaster
 	scaler   *HorizontalScaler
 	cfg      ScalerConfig
 	logger   *zap.Logger
 }
 
 // NewReconciler builds a Reconciler.
-func NewReconciler(fc *ForecastClient, hs *HorizontalScaler, cfg ScalerConfig, logger *zap.Logger) *Reconciler {
+// Pass a *ForecastClient, *HoltWintersForecaster, or *FallbackForecaster as fc.
+func NewReconciler(fc CpuForecaster, hs *HorizontalScaler, cfg ScalerConfig, logger *zap.Logger) *Reconciler {
 	return &Reconciler{forecast: fc, scaler: hs, cfg: cfg, logger: logger}
 }
 

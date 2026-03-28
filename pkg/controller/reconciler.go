@@ -3,13 +3,16 @@ package controller
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"intelligent-cluster-optimizer/pkg/anomaly"
 	optimizerv1alpha1 "intelligent-cluster-optimizer/pkg/apis/optimizer/v1alpha1"
 	"intelligent-cluster-optimizer/pkg/applier"
 	"intelligent-cluster-optimizer/pkg/events"
+	"intelligent-cluster-optimizer/pkg/forecaster"
 	"intelligent-cluster-optimizer/pkg/gitops"
+	"intelligent-cluster-optimizer/pkg/models"
 	"intelligent-cluster-optimizer/pkg/pareto"
 	"intelligent-cluster-optimizer/pkg/prediction"
 	"intelligent-cluster-optimizer/pkg/profile"
@@ -47,6 +50,8 @@ type Reconciler struct {
 	paretoHelper           *pareto.RecommendationHelper
 	gitopsExporter         gitops.Exporter
 	slaHealthChecker       sla.HealthChecker
+	mlForecaster           forecaster.CpuForecaster
+	mlScaler               *forecaster.HorizontalScaler
 }
 
 func NewReconciler(kubeClient kubernetes.Interface, eventRecorder record.EventRecorder) *Reconciler {
@@ -78,6 +83,14 @@ func (r *Reconciler) SetMetricsStorage(store *storage.InMemoryStorage) {
 // GetMetricsStorage returns the metrics storage for external population
 func (r *Reconciler) GetMetricsStorage() *storage.InMemoryStorage {
 	return r.metricsStorage
+}
+
+// SetMLForecaster injects the ML forecaster and its horizontal scaler.
+// When set, the reconciler drives replica scaling for Deployments via the
+// forecaster in addition to the standard resource-request recommendations.
+func (r *Reconciler) SetMLForecaster(f forecaster.CpuForecaster, s *forecaster.HorizontalScaler) {
+	r.mlForecaster = f
+	r.mlScaler = s
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, config *optimizerv1alpha1.OptimizerConfig) (*ReconcileResult, error) {
@@ -396,6 +409,57 @@ func (r *Reconciler) processRecommendations(ctx context.Context, config *optimiz
 			}
 		}
 
+		// ML FORECASTER: Drive horizontal scaling via Chronos-2 (with Holt-Winters fallback)
+		if config.Spec.MLForecaster != nil &&
+			config.Spec.MLForecaster.Enabled &&
+			workloadRec.WorkloadKind == "Deployment" &&
+			r.mlForecaster != nil && r.mlScaler != nil {
+
+			cpuHistory := extractCPUHistory(workloadMetrics)
+			if len(cpuHistory) >= 30 {
+				dep, err := r.kubeClient.AppsV1().Deployments(workloadRec.Namespace).Get(
+					ctx, workloadRec.WorkloadName, metav1.GetOptions{})
+				if err != nil {
+					klog.Warningf("[%s] ML forecaster: failed to get deployment %s/%s: %v",
+						mode, workloadRec.Namespace, workloadRec.WorkloadName, err)
+				} else {
+					currentReplicas := int32(1)
+					if dep.Spec.Replicas != nil {
+						currentReplicas = *dep.Spec.Replicas
+					}
+
+					scalerCfg := forecaster.ScalerConfig{
+						ScaleUpThreshold:   config.Spec.MLForecaster.ScaleUpThreshold,
+						ScaleDownThreshold: config.Spec.MLForecaster.ScaleDownThreshold,
+						CPUPerReplica:      config.Spec.MLForecaster.CPUPerReplica,
+						MinReplicas:        config.Spec.MLForecaster.MinReplicas,
+						MaxReplicas:        config.Spec.MLForecaster.MaxReplicas,
+					}
+
+					pr, err := r.mlForecaster.Predict(ctx, cpuHistory)
+					if err != nil {
+						klog.Warningf("[%s] ML forecaster predict failed for %s/%s: %v",
+							mode, workloadRec.Namespace, workloadRec.WorkloadName, err)
+					} else {
+						decision := forecaster.Decide(pr.Forecast, currentReplicas, scalerCfg)
+						klog.V(3).Infof("[%s] ML forecaster decision for %s/%s: scaleUp=%v scaleDown=%v desired=%d",
+							mode, workloadRec.Namespace, workloadRec.WorkloadName,
+							decision.ScaleUp, decision.ScaleDown, decision.DesiredReplicas)
+
+						if !config.Spec.DryRun {
+							if _, err := r.mlScaler.Scale(ctx, workloadRec.Namespace, workloadRec.WorkloadName, decision); err != nil {
+								klog.Warningf("[%s] ML forecaster scale failed for %s/%s: %v",
+									mode, workloadRec.Namespace, workloadRec.WorkloadName, err)
+							}
+						}
+					}
+				}
+			} else {
+				klog.V(4).Infof("[%s] ML forecaster: insufficient CPU history for %s/%s (%d samples, need 30)",
+					mode, workloadRec.Namespace, workloadRec.WorkloadName, len(cpuHistory))
+			}
+		}
+
 		// PARETO: Generate multi-objective optimal recommendations
 		if len(workloadRec.Containers) > 0 {
 			// Build metrics for Pareto optimization from first container
@@ -555,6 +619,42 @@ func (r *Reconciler) processRecommendations(ctx context.Context, config *optimiz
 	config.Status.TotalRecommendations += int64(len(recommendations))
 
 	return nil
+}
+
+// extractCPUHistory converts pod metrics to a CPU utilisation time series in 0-1 range
+// suitable for the ML forecaster. Metrics are sorted by timestamp and each data point
+// represents the average CPU utilisation (usage/limit) across all containers in all pods.
+// Data points where limit and request are both zero are skipped.
+func extractCPUHistory(metrics []models.PodMetric) []float64 {
+	if len(metrics) == 0 {
+		return nil
+	}
+
+	sort.Slice(metrics, func(i, j int) bool {
+		return metrics[i].Timestamp.Before(metrics[j].Timestamp)
+	})
+
+	history := make([]float64, 0, len(metrics))
+	for _, pm := range metrics {
+		var totalUsage, totalCapacity int64
+		for _, c := range pm.Containers {
+			totalUsage += c.UsageCPU
+			cap := c.LimitCPU
+			if cap == 0 {
+				cap = c.RequestCPU
+			}
+			totalCapacity += cap
+		}
+		if totalCapacity == 0 {
+			continue
+		}
+		v := float64(totalUsage) / float64(totalCapacity)
+		if v > 1 {
+			v = 1
+		}
+		history = append(history, v)
+	}
+	return history
 }
 
 // formatCPU converts millicores to Kubernetes CPU format (e.g., 100 -> "100m", 1000 -> "1")
