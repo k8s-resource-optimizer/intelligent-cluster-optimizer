@@ -154,7 +154,7 @@ def main(cfg: Cfg = CFG) -> None:
     pipeline = ChronosPipeline.from_pretrained(
         cfg.pretrained,
         device_map = "auto",
-        torch_dtype = torch.float16 if cfg.fp16 else torch.float32,
+        dtype = torch.float16 if cfg.fp16 else torch.float32,
     )
     model = pipeline.model
 
@@ -167,7 +167,7 @@ def main(cfg: Cfg = CFG) -> None:
         learning_rate               = cfg.lr,
         weight_decay                = cfg.weight_decay,
         warmup_ratio                = cfg.warmup_ratio,
-        evaluation_strategy         = "epoch",
+        eval_strategy               = "epoch",
         save_strategy               = "epoch",
         load_best_model_at_end      = True,
         metric_for_best_model       = "eval_loss",
