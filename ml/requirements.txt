@@ -6,7 +6,7 @@ python-multipart==0.0.6
 
 # ML and time series forecasting
 torch==2.2.0
-chronos-forecasting==0.1.0
+chronos-forecasting==1.5.3
 transformers==4.37.2
 accelerate==0.26.1
 
