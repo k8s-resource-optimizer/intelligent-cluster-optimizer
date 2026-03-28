@@ -54,7 +54,7 @@ class Cfg:
     warmup_ratio:      float = 0.05
     val_split:         float = 0.1
     seed:              int   = 42
-    fp16:              bool  = True   # set False for CPU-only runs
+    fp16:              bool  = False
 
 
 CFG = Cfg()
