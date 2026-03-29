@@ -52,3 +52,6 @@ temp/
 # Python cache
 __pycache__/
 *.pyc
+
+# ML model checkpoints — large binary files, stored in GCS
+ml/models/
