@@ -39,10 +39,10 @@ func TestIntegration_Fallback_MLServiceUnavailable(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	logger    := zaptest.NewLogger(t)
-	mlClient  := forecaster.NewForecastClient(srv.URL, 2*time.Second, logger)
+	logger := zaptest.NewLogger(t)
+	mlClient := forecaster.NewForecastClient(srv.URL, 2*time.Second, logger)
 	hwFcaster := forecaster.NewHoltWintersForecaster(logger)
-	fb        := forecaster.NewFallbackForecaster(mlClient, hwFcaster, logger)
+	fb := forecaster.NewFallbackForecaster(mlClient, hwFcaster, logger)
 
 	samples := make([]float64, 60)
 	for i := range samples {
@@ -68,10 +68,10 @@ func TestIntegration_Fallback_MLServiceTimeout(t *testing.T) {
 	}))
 	defer slow.Close()
 
-	logger    := zaptest.NewLogger(t)
-	mlClient  := forecaster.NewForecastClient(slow.URL, 50*time.Millisecond, logger) // very short timeout
+	logger := zaptest.NewLogger(t)
+	mlClient := forecaster.NewForecastClient(slow.URL, 50*time.Millisecond, logger) // very short timeout
 	hwFcaster := forecaster.NewHoltWintersForecaster(logger)
-	fb        := forecaster.NewFallbackForecaster(mlClient, hwFcaster, logger)
+	fb := forecaster.NewFallbackForecaster(mlClient, hwFcaster, logger)
 
 	samples := make([]float64, 60)
 	for i := range samples {
@@ -103,10 +103,10 @@ func TestIntegration_Fallback_MLServiceHealthy(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	logger    := zaptest.NewLogger(t)
-	mlClient  := forecaster.NewForecastClient(srv.URL, 2*time.Second, logger)
+	logger := zaptest.NewLogger(t)
+	mlClient := forecaster.NewForecastClient(srv.URL, 2*time.Second, logger)
 	hwFcaster := forecaster.NewHoltWintersForecaster(logger)
-	fb        := forecaster.NewFallbackForecaster(mlClient, hwFcaster, logger)
+	fb := forecaster.NewFallbackForecaster(mlClient, hwFcaster, logger)
 
 	samples := make([]float64, 60)
 	resp, err := fb.Predict(context.Background(), samples)
@@ -226,11 +226,11 @@ func TestIntegration_Reconcile_MLForecasterCalled(t *testing.T) {
 		deployName = "test-app"
 	)
 
-	kube   := fake.NewSimpleClientset(newDeploymentForTest(ns, deployName, 2))
+	kube := fake.NewSimpleClientset(newDeploymentForTest(ns, deployName, 2))
 	logger := zaptest.NewLogger(t)
-	r      := NewReconciler(kube, nil)
+	r := NewReconciler(kube, nil)
 
-	mock   := &countingForecaster{}
+	mock := &countingForecaster{}
 	scaler := forecaster.NewHorizontalScaler(kube, logger)
 	r.SetMLForecaster(mock, scaler)
 
@@ -255,11 +255,11 @@ func TestIntegration_Reconcile_InsufficientMetrics_PredictNotCalled(t *testing.T
 		deployName = "test-app"
 	)
 
-	kube   := fake.NewSimpleClientset(newDeploymentForTest(ns, deployName, 2))
+	kube := fake.NewSimpleClientset(newDeploymentForTest(ns, deployName, 2))
 	logger := zaptest.NewLogger(t)
-	r      := NewReconciler(kube, nil)
+	r := NewReconciler(kube, nil)
 
-	mock   := &countingForecaster{}
+	mock := &countingForecaster{}
 	scaler := forecaster.NewHorizontalScaler(kube, logger)
 	r.SetMLForecaster(mock, scaler)
 
@@ -291,7 +291,7 @@ func TestIntegration_Reconcile_DryRun_ScaleSkipped(t *testing.T) {
 
 	// Use a high-CPU forecaster that would normally trigger scale-up
 	highCPU := &highCPUForecaster{}
-	scaler  := forecaster.NewHorizontalScaler(kube, logger)
+	scaler := forecaster.NewHorizontalScaler(kube, logger)
 	r.SetMLForecaster(highCPU, scaler)
 
 	populateMetrics(r.metricsStorage, ns, deployName, 40)
@@ -335,11 +335,11 @@ func TestIntegration_MLForecasterDisabled_PredictNotCalled(t *testing.T) {
 		deployName = "test-app"
 	)
 
-	kube   := fake.NewSimpleClientset(newDeploymentForTest(ns, deployName, 2))
+	kube := fake.NewSimpleClientset(newDeploymentForTest(ns, deployName, 2))
 	logger := zaptest.NewLogger(t)
-	r      := NewReconciler(kube, nil)
+	r := NewReconciler(kube, nil)
 
-	mock   := &countingForecaster{}
+	mock := &countingForecaster{}
 	scaler := forecaster.NewHorizontalScaler(kube, logger)
 	r.SetMLForecaster(mock, scaler)
 
@@ -365,11 +365,11 @@ func TestIntegration_MLForecasterConfigNil_PredictNotCalled(t *testing.T) {
 		deployName = "test-app"
 	)
 
-	kube   := fake.NewSimpleClientset(newDeploymentForTest(ns, deployName, 2))
+	kube := fake.NewSimpleClientset(newDeploymentForTest(ns, deployName, 2))
 	logger := zaptest.NewLogger(t)
-	r      := NewReconciler(kube, nil)
+	r := NewReconciler(kube, nil)
 
-	mock   := &countingForecaster{}
+	mock := &countingForecaster{}
 	scaler := forecaster.NewHorizontalScaler(kube, logger)
 	r.SetMLForecaster(mock, scaler)
 

@@ -122,9 +122,9 @@ func goodResponse() *forecaster.PredictResponse {
 
 // Test 1e: primary succeeds → FallbackForecaster returns primary result, secondary never called
 func TestFallback_PrimarySucceeds(t *testing.T) {
-	primary   := &mockForecaster{response: goodResponse()}
+	primary := &mockForecaster{response: goodResponse()}
 	secondary := &mockForecaster{response: goodResponse()}
-	fb        := forecaster.NewFallbackForecaster(primary, secondary, zaptest.NewLogger(t))
+	fb := forecaster.NewFallbackForecaster(primary, secondary, zaptest.NewLogger(t))
 
 	resp, err := fb.Predict(context.Background(), rampSamples(60, 0.2, 0.4))
 	if err != nil {
@@ -143,9 +143,9 @@ func TestFallback_PrimarySucceeds(t *testing.T) {
 
 // Test 1f: primary returns error → FallbackForecaster calls secondary, returns no error
 func TestFallback_PrimaryFails_SecondaryUsed(t *testing.T) {
-	primary   := &mockForecaster{err: errors.New("ml service down")}
+	primary := &mockForecaster{err: errors.New("ml service down")}
 	secondary := &mockForecaster{response: goodResponse()}
-	fb        := forecaster.NewFallbackForecaster(primary, secondary, zaptest.NewLogger(t))
+	fb := forecaster.NewFallbackForecaster(primary, secondary, zaptest.NewLogger(t))
 
 	resp, err := fb.Predict(context.Background(), rampSamples(60, 0.2, 0.4))
 	if err != nil {
@@ -161,9 +161,9 @@ func TestFallback_PrimaryFails_SecondaryUsed(t *testing.T) {
 
 // Test 1g: both primary and secondary fail → error is propagated
 func TestFallback_BothFail_ErrorPropagated(t *testing.T) {
-	primary   := &mockForecaster{err: errors.New("ml service down")}
+	primary := &mockForecaster{err: errors.New("ml service down")}
 	secondary := &mockForecaster{err: errors.New("holt-winters error")}
-	fb        := forecaster.NewFallbackForecaster(primary, secondary, zaptest.NewLogger(t))
+	fb := forecaster.NewFallbackForecaster(primary, secondary, zaptest.NewLogger(t))
 
 	_, err := fb.Predict(context.Background(), rampSamples(60, 0.2, 0.4))
 	if err == nil {
@@ -181,7 +181,7 @@ func TestFallback_SamplesPassedThrough(t *testing.T) {
 		err:     errors.New("fail"),
 	}
 	secondary := &capturingForecaster{
-		capture:   &capturedSecondary,
+		capture:  &capturedSecondary,
 		response: goodResponse(),
 	}
 	fb := forecaster.NewFallbackForecaster(primary, secondary, zaptest.NewLogger(t))

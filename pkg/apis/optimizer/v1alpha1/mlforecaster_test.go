@@ -67,15 +67,15 @@ func TestMLForecasterConfig_DeepCopy_AllFields(t *testing.T) {
 // Test 3c: mutating the copy does not affect the original
 func TestMLForecasterConfig_DeepCopy_Independence(t *testing.T) {
 	orig := &v1alpha1.MLForecasterConfig{
-		Enabled:    true,
-		ServiceURL: "http://original:8080",
+		Enabled:     true,
+		ServiceURL:  "http://original:8080",
 		MaxReplicas: 5,
 	}
 	copy := orig.DeepCopy()
 
-	copy.ServiceURL  = "http://modified:9090"
+	copy.ServiceURL = "http://modified:9090"
 	copy.MaxReplicas = 99
-	copy.Enabled     = false
+	copy.Enabled = false
 
 	if orig.ServiceURL != "http://original:8080" {
 		t.Errorf("original ServiceURL was mutated: %s", orig.ServiceURL)
@@ -90,7 +90,7 @@ func TestMLForecasterConfig_DeepCopy_Independence(t *testing.T) {
 
 // Test 3d: DeepCopyInto with zero-value source does not panic
 func TestMLForecasterConfig_DeepCopyInto_ZeroValue(t *testing.T) {
-	in  := &v1alpha1.MLForecasterConfig{}
+	in := &v1alpha1.MLForecasterConfig{}
 	out := &v1alpha1.MLForecasterConfig{}
 	in.DeepCopyInto(out)
 	if out.Enabled != false || out.ServiceURL != "" {

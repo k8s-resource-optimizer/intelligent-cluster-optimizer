@@ -154,7 +154,7 @@ func TestE2E_NoMLService_HoltWintersFallback(t *testing.T) {
 		deployName = "e2e-no-ml-app"
 	)
 
-	kube   := kubeClient(t)
+	kube := kubeClient(t)
 	logger := zaptest.NewLogger(t)
 
 	createTestDeployment(t, kube, ns, deployName, 2)
@@ -166,11 +166,11 @@ func TestE2E_NoMLService_HoltWintersFallback(t *testing.T) {
 	}))
 	defer dead.Close()
 
-	mlClient  := forecaster.NewForecastClient(dead.URL, 500*time.Millisecond, logger)
+	mlClient := forecaster.NewForecastClient(dead.URL, 500*time.Millisecond, logger)
 	hwFcaster := forecaster.NewHoltWintersForecaster(logger)
-	fb        := forecaster.NewFallbackForecaster(mlClient, hwFcaster, logger)
+	fb := forecaster.NewFallbackForecaster(mlClient, hwFcaster, logger)
 
-	r      := controller.NewReconciler(kube, nil)
+	r := controller.NewReconciler(kube, nil)
 	scaler := forecaster.NewHorizontalScaler(kube, logger)
 	r.SetMLForecaster(fb, scaler)
 
@@ -191,12 +191,12 @@ func TestE2E_NoMLService_HoltWintersFallback(t *testing.T) {
 
 func TestE2E_DryRun_ReplicaCountUnchanged(t *testing.T) {
 	const (
-		ns             = "default"
-		deployName     = "e2e-dryrun-app"
+		ns              = "default"
+		deployName      = "e2e-dryrun-app"
 		initialReplicas = int32(2)
 	)
 
-	kube   := kubeClient(t)
+	kube := kubeClient(t)
 	logger := zaptest.NewLogger(t)
 
 	createTestDeployment(t, kube, ns, deployName, initialReplicas)
@@ -215,11 +215,11 @@ func TestE2E_DryRun_ReplicaCountUnchanged(t *testing.T) {
 	}))
 	defer mockML.Close()
 
-	mlClient  := forecaster.NewForecastClient(mockML.URL, 2*time.Second, logger)
+	mlClient := forecaster.NewForecastClient(mockML.URL, 2*time.Second, logger)
 	hwFcaster := forecaster.NewHoltWintersForecaster(logger)
-	fb        := forecaster.NewFallbackForecaster(mlClient, hwFcaster, logger)
+	fb := forecaster.NewFallbackForecaster(mlClient, hwFcaster, logger)
 
-	r      := controller.NewReconciler(kube, nil)
+	r := controller.NewReconciler(kube, nil)
 	scaler := forecaster.NewHorizontalScaler(kube, logger)
 	r.SetMLForecaster(fb, scaler)
 

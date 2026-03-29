@@ -166,8 +166,8 @@ func TestExtractCPUHistory_MixedPods(t *testing.T) {
 // Test 2h: SetMLForecaster stores the injected forecaster and scaler
 func TestSetMLForecaster_Stored(t *testing.T) {
 	logger := zaptest.NewLogger(t)
-	r      := NewReconciler(fakeKube(), nil)
-	fc     := forecaster.NewHoltWintersForecaster(logger)
+	r := NewReconciler(fakeKube(), nil)
+	fc := forecaster.NewHoltWintersForecaster(logger)
 	scaler := forecaster.NewHorizontalScaler(fakeKube(), logger)
 
 	r.SetMLForecaster(fc, scaler)
@@ -183,8 +183,8 @@ func TestSetMLForecaster_Stored(t *testing.T) {
 // Test 2i: SetMLForecaster with nil clears the forecaster (allows disabling at runtime)
 func TestSetMLForecaster_NilClears(t *testing.T) {
 	logger := zaptest.NewLogger(t)
-	r      := NewReconciler(fakeKube(), nil)
-	fc     := forecaster.NewHoltWintersForecaster(logger)
+	r := NewReconciler(fakeKube(), nil)
+	fc := forecaster.NewHoltWintersForecaster(logger)
 
 	r.SetMLForecaster(fc, nil)
 	r.SetMLForecaster(nil, nil)
