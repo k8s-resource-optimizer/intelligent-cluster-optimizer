@@ -125,8 +125,7 @@ func TestIntegration_Fallback_MLServiceHealthy(t *testing.T) {
 
 // countingForecaster records how many times Predict was called.
 type countingForecaster struct {
-	called   int
-	response *forecaster.PredictResponse
+	called int
 }
 
 func (c *countingForecaster) Predict(_ context.Context, _ []float64) (*forecaster.PredictResponse, error) {
