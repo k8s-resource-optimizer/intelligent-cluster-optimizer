@@ -8,6 +8,7 @@ import (
 
 	"intelligent-cluster-optimizer/pkg/anomaly"
 	optimizerv1alpha1 "intelligent-cluster-optimizer/pkg/apis/optimizer/v1alpha1"
+	"intelligent-cluster-optimizer/pkg/apiserver"
 	"intelligent-cluster-optimizer/pkg/applier"
 	"intelligent-cluster-optimizer/pkg/events"
 	"intelligent-cluster-optimizer/pkg/forecaster"
@@ -52,6 +53,11 @@ type Reconciler struct {
 	slaHealthChecker       sla.HealthChecker
 	mlForecaster           forecaster.CpuForecaster
 	mlScaler               *forecaster.HorizontalScaler
+
+	// GUI API backend stores — optional; set via SetAPIStores.
+	scalingHistory *apiserver.ScalingHistoryStore
+	forecastCache  *apiserver.ForecastCache
+	dryRunQueue    *apiserver.DryRunQueue
 }
 
 func NewReconciler(kubeClient kubernetes.Interface, eventRecorder record.EventRecorder) *Reconciler {
@@ -91,6 +97,18 @@ func (r *Reconciler) GetMetricsStorage() *storage.InMemoryStorage {
 func (r *Reconciler) SetMLForecaster(f forecaster.CpuForecaster, s *forecaster.HorizontalScaler) {
 	r.mlForecaster = f
 	r.mlScaler = s
+}
+
+// SetAPIStores injects the shared stores used by the GUI API server.
+// All three parameters are required together; pass nil to disable GUI recording.
+func (r *Reconciler) SetAPIStores(
+	history *apiserver.ScalingHistoryStore,
+	cache *apiserver.ForecastCache,
+	queue *apiserver.DryRunQueue,
+) {
+	r.scalingHistory = history
+	r.forecastCache = cache
+	r.dryRunQueue = queue
 }
 
 func (r *Reconciler) Reconcile(ctx context.Context, config *optimizerv1alpha1.OptimizerConfig) (*ReconcileResult, error) {
@@ -446,11 +464,47 @@ func (r *Reconciler) processRecommendations(ctx context.Context, config *optimiz
 							mode, workloadRec.Namespace, workloadRec.WorkloadName,
 							decision.ScaleUp, decision.ScaleDown, decision.DesiredReplicas)
 
+						// Cache the forecast result for the GUI /api/forecasts endpoint.
+						if r.forecastCache != nil {
+							d := decision
+							r.forecastCache.Set(workloadRec.Namespace, workloadRec.WorkloadName, apiserver.ForecastEntry{
+								Namespace:      workloadRec.Namespace,
+								DeploymentName: workloadRec.WorkloadName,
+								Points:         pr.Forecast,
+								Decision:       &d,
+								InferenceMs:    pr.InferenceMs,
+								CPUSamples:     len(cpuHistory),
+							})
+						}
+
 						if !config.Spec.DryRun {
 							if _, err := r.mlScaler.Scale(ctx, workloadRec.Namespace, workloadRec.WorkloadName, decision); err != nil {
 								klog.Warningf("[%s] ML forecaster scale failed for %s/%s: %v",
 									mode, workloadRec.Namespace, workloadRec.WorkloadName, err)
+							} else if r.scalingHistory != nil && (decision.ScaleUp || decision.ScaleDown) {
+								r.scalingHistory.Add(apiserver.ScalingRecord{
+									Namespace:      workloadRec.Namespace,
+									DeploymentName: workloadRec.WorkloadName,
+									OldReplicas:    currentReplicas,
+									NewReplicas:    decision.DesiredReplicas,
+									Reason:         "ML",
+									PeakCPU:        decision.PeakCPU,
+									SustainedCPU:   decision.SustainedCPU,
+									Applied:        true,
+								})
 							}
+						} else if r.dryRunQueue != nil && (decision.ScaleUp || decision.ScaleDown) {
+							// Dry-run: enqueue for user review via /api/dry-run/approve|reject.
+							r.dryRunQueue.Add(apiserver.DryRunDecision{
+								Namespace:       workloadRec.Namespace,
+								DeploymentName:  workloadRec.WorkloadName,
+								CurrentReplicas: currentReplicas,
+								DesiredReplicas: decision.DesiredReplicas,
+								Reason:          "ML",
+								Decision:        decision,
+							})
+							klog.V(3).Infof("[%s] Dry-run: enqueued decision for %s/%s (desired=%d)",
+								mode, workloadRec.Namespace, workloadRec.WorkloadName, decision.DesiredReplicas)
 						}
 					}
 				}

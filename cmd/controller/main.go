@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"intelligent-cluster-optimizer/pkg/apis/optimizer/v1alpha1"
+	"intelligent-cluster-optimizer/pkg/apiserver"
 	"intelligent-cluster-optimizer/pkg/controller"
 	"intelligent-cluster-optimizer/pkg/forecaster"
 
@@ -37,6 +38,7 @@ var (
 	renewDeadline time.Duration
 	retryPeriod   time.Duration
 	mlServiceURL  string
+	apiAddr       string
 )
 
 func main() {
@@ -53,6 +55,8 @@ func main() {
 	flag.StringVar(&mlServiceURL, "ml-service-url", os.Getenv("ML_SERVICE_URL"),
 		"Base URL of the Chronos-2 ML forecasting service (e.g. http://ml-service:8080). "+
 			"Falls back to Holt-Winters when empty or unreachable.")
+	flag.StringVar(&apiAddr, "api-addr", ":8090",
+		"Address for the GUI REST API server (e.g. :8090). Set to empty string to disable.")
 	flag.Parse()
 
 	if err := v1alpha1.AddToScheme(scheme.Scheme); err != nil {
@@ -107,6 +111,13 @@ func main() {
 	mlScaler := forecaster.NewHorizontalScaler(kubeClient, zapLogger)
 	reconciler.SetMLForecaster(cpuForecaster, mlScaler)
 
+	// ── GUI API server ────────────────────────────────────────────────────────
+	scalingHistory := apiserver.NewScalingHistoryStore(500)
+	forecastCache := apiserver.NewForecastCache()
+	dryRunQueue := apiserver.NewDryRunQueue()
+	reconciler.SetAPIStores(scalingHistory, forecastCache, dryRunQueue)
+	// ─────────────────────────────────────────────────────────────────────────
+
 	ctrl := controller.NewOptimizerController(kubeClient, optimizerClient, reconciler, eventRecorder, namespace)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -119,6 +130,23 @@ func main() {
 		klog.Infof("Received signal %v, shutting down gracefully", sig)
 		cancel()
 	}()
+
+	// Start the GUI API server now that ctx is available.
+	if apiAddr != "" {
+		apiSrv := apiserver.NewServer(apiserver.Config{
+			Addr:            apiAddr,
+			Namespace:       namespace,
+			KubeClient:      kubeClient,
+			OptimizerClient: optimizerClient,
+			MetricsStorage:  reconciler.GetMetricsStorage(),
+			ScalingHistory:  scalingHistory,
+			ForecastCache:   forecastCache,
+			DryRunQueue:     dryRunQueue,
+			MLScaler:        mlScaler,
+		})
+		go apiSrv.Start(ctx)
+		klog.Infof("GUI API server started on %s", apiAddr)
+	}
 
 	if !leaderElect {
 		klog.Info("Running without leader election")
