@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"strings"
 	"time"
 
 	optimizerv1alpha1 "intelligent-cluster-optimizer/pkg/apis/optimizer/v1alpha1"
@@ -480,16 +479,4 @@ func (s *Server) handleDryRunReject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, d)
-}
-
-// ── Utility: extract workload name from pod name ──────────────────────────────
-
-// workloadFromPod strips the last two dash-separated segments from a pod name
-// to recover the deployment/statefulset name (e.g. "app-abc123-xyz" → "app").
-func workloadFromPod(podName string) string {
-	parts := strings.Split(podName, "-")
-	if len(parts) <= 2 {
-		return podName
-	}
-	return strings.Join(parts[:len(parts)-2], "-")
 }
