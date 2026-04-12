@@ -55,3 +55,7 @@ __pycache__/
 
 # ML model checkpoints — large binary files, stored in GCS
 ml/models/
+
+# Frontend dependencies
+ui/node_modules/
+ui/dist/

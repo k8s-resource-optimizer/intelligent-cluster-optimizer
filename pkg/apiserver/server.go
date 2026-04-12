@@ -265,12 +265,12 @@ func (s *Server) handleScalingHistory(w http.ResponseWriter, r *http.Request) {
 
 // OptimizerConfigSummary is the slimmed-down view exposed to the GUI.
 type OptimizerConfigSummary struct {
-	Name             string `json:"name"`
-	Namespace        string `json:"namespace"`
-	Enabled          bool   `json:"enabled"`
-	DryRun           bool   `json:"dry_run"`
-	Phase            string `json:"phase"`
-	MLForecasterEnabled bool `json:"ml_forecaster_enabled"`
+	Name                string `json:"name"`
+	Namespace           string `json:"namespace"`
+	Enabled             bool   `json:"enabled"`
+	DryRun              bool   `json:"dry_run"`
+	Phase               string `json:"phase"`
+	MLForecasterEnabled bool   `json:"ml_forecaster_enabled"`
 }
 
 func (s *Server) handleOptimizerConfigs(w http.ResponseWriter, r *http.Request) {

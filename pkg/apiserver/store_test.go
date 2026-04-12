@@ -181,8 +181,8 @@ func TestForecastCache_WithDecision(t *testing.T) {
 func TestDryRunQueue_AddAndGetPending(t *testing.T) {
 	q := apiserver.NewDryRunQueue()
 	q.Add(apiserver.DryRunDecision{
-		Namespace:      "default",
-		DeploymentName: "web",
+		Namespace:       "default",
+		DeploymentName:  "web",
 		DesiredReplicas: 4,
 	})
 	pending := q.GetPending()
