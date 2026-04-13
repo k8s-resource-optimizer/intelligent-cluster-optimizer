@@ -22,9 +22,9 @@ jobs:
 
       - name: Check formatting
         run: |
-          if [ -n "$(gofmt -l .)" ]; then
+          if [ -n "$(gofmt -l . | grep -v '^vendor/')" ]; then
             echo "Code is not formatted. Run 'go fmt ./...'"
-            gofmt -d .
+            gofmt -d $(find . -name '*.go' -not -path './vendor/*')
             exit 1
           fi
 

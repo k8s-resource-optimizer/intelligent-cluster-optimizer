@@ -17,8 +17,8 @@ cmd/optctl/optctl
 coverage.txt
 coverage.html
 
-# Dependency directories
-vendor/
+# Dependency directories are vendored intentionally for offline Docker builds
+# vendor/
 
 # Go workspace file
 go.work

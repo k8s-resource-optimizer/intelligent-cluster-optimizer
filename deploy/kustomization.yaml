@@ -8,8 +8,8 @@ resources:
   - rbac.yaml
   - deployment.yaml
   - service.yaml
-  - servicemonitor.yaml
   - optimizerconfig-workloads.yaml
+  # servicemonitor.yaml requires Prometheus Operator CRDs — omitted until installed
 
 images:
   - name: us-central1-docker.pkg.dev/k8s-resource-optimizer/optimizer/controller

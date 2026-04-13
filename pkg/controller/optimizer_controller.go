@@ -9,6 +9,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -173,9 +174,24 @@ func (c *OptimizerController) syncHandler(ctx context.Context, key string) error
 	}
 
 	if result.Updated && !equality.Semantic.DeepEqual(original.Status, config.Status) {
-		_, err = c.optimizerClient.UpdateStatus(ctx, config, metav1.UpdateOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to update status: %v", err)
+		updatedStatus := config.Status
+		// Retry on conflict: re-fetch the latest resourceVersion and apply our status.
+		var statusErr error
+		for attempt := 0; attempt < 5; attempt++ {
+			latest, getErr := c.optimizerClient.Get(ctx, config.Name, metav1.GetOptions{})
+			if getErr != nil {
+				statusErr = getErr
+				break
+			}
+			latest.Status = updatedStatus
+			_, statusErr = c.optimizerClient.UpdateStatus(ctx, latest, metav1.UpdateOptions{})
+			if statusErr == nil || !k8serrors.IsConflict(statusErr) {
+				break
+			}
+			klog.V(4).Infof("Status update conflict for %s/%s, retrying (attempt %d)", config.Namespace, config.Name, attempt+1)
+		}
+		if statusErr != nil {
+			return fmt.Errorf("failed to update status: %v", statusErr)
 		}
 	}
 

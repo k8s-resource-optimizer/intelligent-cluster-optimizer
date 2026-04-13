@@ -8,13 +8,15 @@ RUN apk add --no-cache git ca-certificates
 
 # Copy go modules first for layer caching
 COPY go.mod go.sum ./
-RUN go mod download
+COPY vendor/ vendor/
 
 # Copy source code
 COPY . .
 
 # Build controller binary
+# -mod=vendor uses the local vendor dir so no outbound network is required
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -mod=vendor \
     -ldflags="-w -s" \
     -o /app/bin/controller \
     ./cmd/controller
