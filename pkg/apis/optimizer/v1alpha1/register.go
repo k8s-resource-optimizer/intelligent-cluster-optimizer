@@ -31,9 +31,19 @@ var (
 	AddToScheme = SchemeBuilder.AddToScheme
 )
 
+// internalGV is the internal (unversioned) group version required by the
+// codec factory so watch stream events can be decoded without error.
+var internalGV = schema.GroupVersion{Group: GroupName, Version: runtime.APIVersionInternal}
+
 // addKnownTypes adds the set of types defined in this package to the supplied scheme
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
+		&OptimizerConfig{},
+		&OptimizerConfigList{},
+	)
+	// Register the same types for the internal version so the reflector's
+	// watch stream decoder does not log "no kind registered for internal version".
+	scheme.AddKnownTypes(internalGV,
 		&OptimizerConfig{},
 		&OptimizerConfigList{},
 	)
