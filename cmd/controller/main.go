@@ -21,6 +21,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
@@ -64,9 +65,13 @@ func main() {
 		klog.Fatalf("Failed to register OptimizerConfig scheme: %v", err)
 	}
 
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	config, err := rest.InClusterConfig()
 	if err != nil {
-		klog.Fatalf("Failed to build config: %v", err)
+		// Fall back to kubeconfig file for local development
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			klog.Fatalf("Failed to build config: %v", err)
+		}
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(config)

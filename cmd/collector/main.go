@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	// Import local packages
@@ -44,11 +45,14 @@ func main() {
 		log.Fatalf("Invalid interval format '%s': %v. Use format like '30s', '1m', '2m30s'", *pollIntervalStr, err)
 	}
 
-	// 3. Setup Kubeconfig
-	kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	// 3. Setup Kubeconfig — try in-cluster first, fall back to local kubeconfig
+	config, err := rest.InClusterConfig()
 	if err != nil {
-		log.Fatal(err)
+		kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	fmt.Printf("Configuration:\n")

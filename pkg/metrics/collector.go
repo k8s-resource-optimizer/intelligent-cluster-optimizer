@@ -38,15 +38,17 @@ func NewCollector(config *rest.Config) (*MetricsCollector, error) {
 }
 
 func (c *MetricsCollector) GetPodMetrics(namespace string) ([]models.PodMetric, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	// Fetch live usage numbers (metrics api)
-	metricsList, err := c.MetricsClient.MetricsV1beta1().PodMetricses(namespace).List(context.TODO(), metav1.ListOptions{})
+	metricsList, err := c.MetricsClient.MetricsV1beta1().PodMetricses(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch pod configurations (core api) to get requests and limits
-	podList, err := c.Clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+	podList, err := c.Clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
