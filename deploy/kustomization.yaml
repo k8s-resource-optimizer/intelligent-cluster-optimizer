@@ -5,11 +5,13 @@ namespace: intelligent-optimizer-system
 
 resources:
   - namespace.yaml
+  - workloads-namespace.yaml
   - serviceaccount.yaml
   - rbac.yaml
   - deployment.yaml
   - service.yaml
   - servicemonitor.yaml
+  - optimizerconfig-workloads.yaml
 
 images:
   - name: intelligent-cluster-optimizer
