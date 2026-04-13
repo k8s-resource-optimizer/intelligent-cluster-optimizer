@@ -13,6 +13,7 @@ import (
 	"intelligent-cluster-optimizer/pkg/apiserver"
 	"intelligent-cluster-optimizer/pkg/controller"
 	"intelligent-cluster-optimizer/pkg/forecaster"
+	"intelligent-cluster-optimizer/pkg/storage"
 
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
@@ -130,6 +131,19 @@ func main() {
 		klog.Infof("Received signal %v, shutting down gracefully", sig)
 		cancel()
 	}()
+
+	// ── Backup manager ───────────────────────────────────────────────────────
+	backupMgr := storage.NewBackupManager(
+		reconciler.GetMetricsStorage(),
+		storage.BackupConfig{Enabled: true},
+		zapLogger,
+	)
+	if err := backupMgr.Start(); err != nil {
+		klog.Warningf("Backup manager failed to start (non-fatal): %v", err)
+	} else {
+		defer backupMgr.Stop()
+	}
+	// ─────────────────────────────────────────────────────────────────────────
 
 	// Start the GUI API server now that ctx is available.
 	if apiAddr != "" {
