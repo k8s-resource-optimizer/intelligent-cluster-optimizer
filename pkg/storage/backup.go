@@ -39,9 +39,13 @@ func NewBackupManager(storage *InMemoryStorage, config BackupConfig, logger *zap
 		logger = zap.NewNop()
 	}
 
-	// Set defaults
+	// Set defaults: CRD field → BACKUP_DIR env var → hard-coded fallback
 	if config.StorageDir == "" {
-		config.StorageDir = "/var/lib/optimizer/backups"
+		if dir := os.Getenv("BACKUP_DIR"); dir != "" {
+			config.StorageDir = dir
+		} else {
+			config.StorageDir = "/var/lib/optimizer/backups"
+		}
 	}
 	if config.RetentionCount == 0 {
 		config.RetentionCount = 10
