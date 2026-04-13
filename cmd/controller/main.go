@@ -13,6 +13,7 @@ import (
 	"intelligent-cluster-optimizer/pkg/apiserver"
 	"intelligent-cluster-optimizer/pkg/controller"
 	"intelligent-cluster-optimizer/pkg/forecaster"
+	"intelligent-cluster-optimizer/pkg/metrics"
 	"intelligent-cluster-optimizer/pkg/storage"
 
 	"go.uber.org/zap"
@@ -95,6 +96,15 @@ func main() {
 	})
 
 	reconciler := controller.NewReconciler(kubeClient, eventRecorder)
+
+	// Wire up live metrics collector so the reconciler can fetch pod metrics from
+	// the metrics-server on every reconcile loop and populate metricsStorage.
+	if metricsCollector, err := metrics.NewCollector(config); err != nil {
+		klog.Warningf("Failed to create metrics collector (recommendations will use cached data only): %v", err)
+	} else {
+		reconciler.SetMetricsCollector(metricsCollector)
+		klog.Info("Live metrics collector attached to reconciler")
+	}
 
 	// Wire up ML forecaster with Holt-Winters fallback.
 	// The FallbackForecaster tries the Chronos-2 service first; on any error it

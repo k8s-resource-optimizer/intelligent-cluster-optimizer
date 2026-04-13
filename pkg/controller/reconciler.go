@@ -13,6 +13,7 @@ import (
 	"intelligent-cluster-optimizer/pkg/events"
 	"intelligent-cluster-optimizer/pkg/forecaster"
 	"intelligent-cluster-optimizer/pkg/gitops"
+	"intelligent-cluster-optimizer/pkg/metrics"
 	"intelligent-cluster-optimizer/pkg/models"
 	"intelligent-cluster-optimizer/pkg/pareto"
 	"intelligent-cluster-optimizer/pkg/prediction"
@@ -54,6 +55,11 @@ type Reconciler struct {
 	mlForecaster           forecaster.CpuForecaster
 	mlScaler               *forecaster.HorizontalScaler
 
+	// metricsCollector is used to fetch live pod metrics from the metrics-server.
+	// Optional; when set, processRecommendations populates metricsStorage before
+	// running the recommendation engine.
+	metricsCollector *metrics.MetricsCollector
+
 	// GUI API backend stores — optional; set via SetAPIStores.
 	scalingHistory *apiserver.ScalingHistoryStore
 	forecastCache  *apiserver.ForecastCache
@@ -89,6 +95,12 @@ func (r *Reconciler) SetMetricsStorage(store *storage.InMemoryStorage) {
 // GetMetricsStorage returns the metrics storage for external population
 func (r *Reconciler) GetMetricsStorage() *storage.InMemoryStorage {
 	return r.metricsStorage
+}
+
+// SetMetricsCollector injects a live metrics collector so the reconciler can
+// populate metricsStorage from the metrics-server on every reconcile loop.
+func (r *Reconciler) SetMetricsCollector(c *metrics.MetricsCollector) {
+	r.metricsCollector = c
 }
 
 // SetMLForecaster injects the ML forecaster and its horizontal scaler.
@@ -266,6 +278,22 @@ func (r *Reconciler) updateCondition(
 
 func (r *Reconciler) processRecommendations(ctx context.Context, config *optimizerv1alpha1.OptimizerConfig, mode string) error {
 	klog.V(4).Infof("[%s] Processing recommendations for OptimizerConfig %s/%s", mode, config.Namespace, config.Name)
+
+	// METRICS COLLECTION: Fetch live pod metrics from the metrics-server and
+	// populate metricsStorage so the recommendation engine has data to work with.
+	if r.metricsCollector != nil {
+		for _, ns := range config.Spec.TargetNamespaces {
+			pods, err := r.metricsCollector.GetPodMetrics(ns)
+			if err != nil {
+				klog.Warningf("[%s] Failed to collect metrics for namespace %s: %v", mode, ns, err)
+				continue
+			}
+			for i := range pods {
+				r.metricsStorage.Add(pods[i])
+			}
+			klog.V(4).Infof("[%s] Collected %d pod metrics from namespace %s", mode, len(pods), ns)
+		}
+	}
 
 	// SLA SAFETY CHECK: Pre-optimization health check
 	preOptHealth, err := r.checkSystemHealth(config)
