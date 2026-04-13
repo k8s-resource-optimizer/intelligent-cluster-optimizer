@@ -41,9 +41,13 @@ spec:
           - --kubeconfig=
           - --lease-lock-namespace=intelligent-optimizer-system
           - --namespace=intelligent-optimizer-system
+          - --api-addr=:8090
         ports:
         - name: metrics
           containerPort: 8080
+          protocol: TCP
+        - name: api
+          containerPort: 8090
           protocol: TCP
         env:
         - name: POD_NAMESPACE
@@ -54,6 +58,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: BACKUP_DIR
+          value: /var/lib/optimizer/backups
         resources:
           requests:
             cpu: 100m
