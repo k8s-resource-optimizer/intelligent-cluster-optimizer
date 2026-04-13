@@ -8,14 +8,8 @@ spec:
   targetNamespaces:
     - workloads
 
-  # Use development profile: aggressive settings, fast feedback loop
-  profile: development
-
   # Start in dry-run — observe recommendations before applying
   # Set to false once you have verified the recommendations look sane
   dryRun: true
 
-  backup:
-    enabled: true
-    retentionCount: 10
-    backupInterval: 5m
+  strategy: aggressive

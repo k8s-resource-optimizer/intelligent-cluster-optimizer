@@ -26,6 +26,7 @@ COPY --from=builder /app/bin/controller /controller
 
 USER nonroot:nonroot
 
-EXPOSE 8080 8081
+# 8080 = Prometheus metrics   8090 = GUI REST API
+EXPOSE 8080 8090
 
 ENTRYPOINT ["/controller"]

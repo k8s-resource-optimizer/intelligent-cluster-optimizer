@@ -33,8 +33,8 @@ spec:
           type: RuntimeDefault
       containers:
       - name: controller
-        image: intelligent-cluster-optimizer:latest
-        imagePullPolicy: IfNotPresent
+        image: us-central1-docker.pkg.dev/k8s-resource-optimizer/optimizer/controller:latest
+        imagePullPolicy: Always
         command:
           - /controller
         args:
@@ -60,6 +60,9 @@ spec:
               fieldPath: metadata.name
         - name: BACKUP_DIR
           value: /var/lib/optimizer/backups
+        volumeMounts:
+        - name: backup-storage
+          mountPath: /var/lib/optimizer/backups
         resources:
           requests:
             cpu: 100m
@@ -75,4 +78,7 @@ spec:
           capabilities:
             drop:
               - ALL
+      volumes:
+      - name: backup-storage
+        emptyDir: {}
       terminationGracePeriodSeconds: 10
