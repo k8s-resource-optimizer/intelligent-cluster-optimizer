@@ -6,6 +6,7 @@ resources:
   - workloads-namespace.yaml
   - serviceaccount.yaml
   - rbac.yaml
+  - pvc.yaml
   - deployment.yaml
   - service.yaml
   - optimizerconfig-workloads.yaml

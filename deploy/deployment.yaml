@@ -80,5 +80,6 @@ spec:
               - ALL
       volumes:
       - name: backup-storage
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: optimizer-backup
       terminationGracePeriodSeconds: 10
