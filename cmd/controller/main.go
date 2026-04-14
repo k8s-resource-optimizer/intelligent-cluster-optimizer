@@ -11,6 +11,7 @@ import (
 
 	"intelligent-cluster-optimizer/pkg/apis/optimizer/v1alpha1"
 	"intelligent-cluster-optimizer/pkg/apiserver"
+	"intelligent-cluster-optimizer/pkg/applier"
 	"intelligent-cluster-optimizer/pkg/controller"
 	"intelligent-cluster-optimizer/pkg/forecaster"
 	"intelligent-cluster-optimizer/pkg/metrics"
@@ -173,6 +174,7 @@ func main() {
 			ForecastCache:   forecastCache,
 			DryRunQueue:     dryRunQueue,
 			MLScaler:        mlScaler,
+			VerticalApplier: applier.NewApplier(kubeClient, eventRecorder),
 		})
 		go apiSrv.Start(ctx)
 		klog.Infof("GUI API server started on %s", apiAddr)

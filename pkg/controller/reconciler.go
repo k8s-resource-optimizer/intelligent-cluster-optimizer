@@ -534,6 +534,7 @@ func (r *Reconciler) processRecommendations(ctx context.Context, config *optimiz
 						} else if r.dryRunQueue != nil && (decision.ScaleUp || decision.ScaleDown) {
 							// Dry-run: enqueue for user review via /api/dry-run/approve|reject.
 							r.dryRunQueue.Add(apiserver.DryRunDecision{
+								ScalingType:     "horizontal",
 								Namespace:       workloadRec.Namespace,
 								DeploymentName:  workloadRec.WorkloadName,
 								CurrentReplicas: currentReplicas,
@@ -662,6 +663,26 @@ func (r *Reconciler) processRecommendations(ctx context.Context, config *optimiz
 					len(applyResult.Changes), applyResult.WorkloadKind, applyResult.WorkloadName)
 				for _, change := range applyResult.Changes {
 					klog.V(3).Infof("[DRY-RUN]   - %s", change)
+				}
+				if r.dryRunQueue != nil && len(applyResult.Changes) > 0 {
+					d := apiserver.DryRunDecision{
+						ScalingType:       "vertical",
+						Namespace:         rec.Namespace,
+						DeploymentName:    rec.WorkloadName,
+						ContainerName:     rec.ContainerName,
+						WorkloadKind:      rec.WorkloadKind,
+						CurrentCPU:        rec.CurrentCPU,
+						RecommendedCPU:    rec.RecommendedCPU,
+						CurrentMemory:     rec.CurrentMemory,
+						RecommendedMemory: rec.RecommendedMemory,
+						Confidence:        containerRec.Confidence,
+						Reason:            "HoltWinters",
+					}
+					if containerRec.EstimatedSavings != nil {
+						d.SavingsPerHour = containerRec.EstimatedSavings.TotalSavingsPerHour
+						d.SavingsPerMonth = containerRec.EstimatedSavings.SavingsPerMonth
+					}
+					r.dryRunQueue.Add(d)
 				}
 			} else if applyResult.Applied {
 				appliedCount++

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	optimizerv1alpha1 "intelligent-cluster-optimizer/pkg/apis/optimizer/v1alpha1"
+	"intelligent-cluster-optimizer/pkg/applier"
 	"intelligent-cluster-optimizer/pkg/forecaster"
 	"intelligent-cluster-optimizer/pkg/storage"
 
@@ -30,6 +31,7 @@ type Server struct {
 	forecastCache   *ForecastCache
 	dryRunQueue     *DryRunQueue
 	mlScaler        *forecaster.HorizontalScaler
+	verticalApplier *applier.Applier
 	namespace       string
 	httpServer      *http.Server
 }
@@ -45,6 +47,7 @@ type Config struct {
 	ForecastCache   *ForecastCache
 	DryRunQueue     *DryRunQueue
 	MLScaler        *forecaster.HorizontalScaler
+	VerticalApplier *applier.Applier
 }
 
 // NewServer constructs a Server and registers all routes.
@@ -58,6 +61,7 @@ func NewServer(cfg Config) *Server {
 		forecastCache:   cfg.ForecastCache,
 		dryRunQueue:     cfg.DryRunQueue,
 		mlScaler:        cfg.MLScaler,
+		verticalApplier: cfg.VerticalApplier,
 		namespace:       cfg.Namespace,
 	}
 
@@ -432,26 +436,71 @@ func (s *Server) handleDryRunApprove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Execute the approved scale action.
-	if s.mlScaler != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if _, err := s.mlScaler.Scale(ctx, d.Namespace, d.DeploymentName, d.Decision); err != nil {
-			klog.Warningf("dry-run approve: scale failed for %s/%s: %v", d.Namespace, d.DeploymentName, err)
-			writeError(w, http.StatusInternalServerError, "scale failed: "+err.Error())
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	switch d.ScalingType {
+	case "vertical":
+		if s.verticalApplier == nil {
+			writeError(w, http.StatusServiceUnavailable, "vertical applier not available")
 			return
 		}
-		// Record as applied.
-		s.scalingHistory.Add(ScalingRecord{
-			Namespace:      d.Namespace,
-			DeploymentName: d.DeploymentName,
-			OldReplicas:    d.CurrentReplicas,
-			NewReplicas:    d.DesiredReplicas,
-			Reason:         d.Reason + " (approved)",
-			PeakCPU:        d.Decision.PeakCPU,
-			SustainedCPU:   d.Decision.SustainedCPU,
-			Applied:        true,
-		})
+		rec := &applier.ResourceRecommendation{
+			Namespace:         d.Namespace,
+			WorkloadKind:      d.WorkloadKind,
+			WorkloadName:      d.DeploymentName,
+			ContainerName:     d.ContainerName,
+			CurrentCPU:        d.CurrentCPU,
+			RecommendedCPU:    d.RecommendedCPU,
+			CurrentMemory:     d.CurrentMemory,
+			RecommendedMemory: d.RecommendedMemory,
+		}
+		result, err := s.verticalApplier.Apply(ctx, rec, false)
+		if err != nil || !result.Applied {
+			msg := "vertical scale failed"
+			if err != nil {
+				msg += ": " + err.Error()
+			}
+			klog.Warningf("dry-run approve: %s for %s/%s", msg, d.Namespace, d.DeploymentName)
+			writeError(w, http.StatusInternalServerError, msg)
+			return
+		}
+		if s.scalingHistory != nil {
+			s.scalingHistory.Add(ScalingRecord{
+				Namespace:       d.Namespace,
+				DeploymentName:  d.DeploymentName,
+				ContainerName:   d.ContainerName,
+				Reason:          d.Reason + " (approved)",
+				Applied:         true,
+				OldCPU:          d.CurrentCPU,
+				NewCPU:          d.RecommendedCPU,
+				OldMemory:       d.CurrentMemory,
+				NewMemory:       d.RecommendedMemory,
+				Confidence:      d.Confidence,
+				SavingsPerHour:  d.SavingsPerHour,
+				SavingsPerMonth: d.SavingsPerMonth,
+			})
+		}
+	default: // "horizontal" or legacy
+		if s.mlScaler != nil {
+			if _, err := s.mlScaler.Scale(ctx, d.Namespace, d.DeploymentName, d.Decision); err != nil {
+				klog.Warningf("dry-run approve: scale failed for %s/%s: %v", d.Namespace, d.DeploymentName, err)
+				writeError(w, http.StatusInternalServerError, "scale failed: "+err.Error())
+				return
+			}
+			if s.scalingHistory != nil {
+				s.scalingHistory.Add(ScalingRecord{
+					Namespace:      d.Namespace,
+					DeploymentName: d.DeploymentName,
+					OldReplicas:    d.CurrentReplicas,
+					NewReplicas:    d.DesiredReplicas,
+					Reason:         d.Reason + " (approved)",
+					PeakCPU:        d.Decision.PeakCPU,
+					SustainedCPU:   d.Decision.SustainedCPU,
+					Applied:        true,
+				})
+			}
+		}
 	}
 
 	writeJSON(w, http.StatusOK, d)

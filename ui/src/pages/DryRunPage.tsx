@@ -100,7 +100,7 @@ export function DryRunPage() {
           {decisions.map(d => (
             <div key={d.id} style={{
               background: '#0d1117',
-              border: '1px solid #1e2535',
+              border: `1px solid ${d.scaling_type === 'vertical' ? '#1e3a2f' : '#1e2535'}`,
               borderRadius: 8,
               padding: 20,
             }}>
@@ -109,38 +109,60 @@ export function DryRunPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <span style={{ fontFamily: 'monospace', fontSize: 14, fontWeight: 600, color: '#f1f5f9' }}>
                       {d.deployment_name}
+                      {d.container_name && <span style={{ color: '#64748b', fontWeight: 400 }}> / {d.container_name}</span>}
                     </span>
                     <span style={{ fontSize: 12, color: '#64748b' }}>{d.namespace}</span>
                     <span style={{
-                      padding: '2px 8px',
-                      borderRadius: 4,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      background: '#7c3aed22',
-                      color: '#a78bfa',
+                      padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
+                      background: d.scaling_type === 'vertical' ? '#14532d44' : '#7c3aed22',
+                      color: d.scaling_type === 'vertical' ? '#4ade80' : '#a78bfa',
+                    }}>
+                      {d.scaling_type === 'vertical' ? 'Vertical' : 'Horizontal'}
+                    </span>
+                    <span style={{
+                      padding: '2px 8px', borderRadius: 4, fontSize: 11,
+                      background: '#1e2535', color: '#94a3b8',
                     }}>
                       {d.reason}
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', gap: 24, fontSize: 13, color: '#94a3b8' }}>
-                    <span>
-                      Replicas:{' '}
-                      <strong style={{ color: '#f1f5f9' }}>{d.current_replicas}</strong>
-                      <span style={{ color: '#475569', margin: '0 6px' }}>→</span>
-                      <strong style={{
-                        color: d.desired_replicas > d.current_replicas ? '#22c55e' : '#ef4444',
-                      }}>
-                        {d.desired_replicas}
-                      </strong>
-                    </span>
-                    {d.decision.PeakCPU > 0 && (
-                      <span>Peak CPU: <strong style={{ color: '#f1f5f9' }}>{(d.decision.PeakCPU * 100).toFixed(0)}%</strong></span>
-                    )}
-                    <span style={{ fontSize: 12 }}>
-                      {new Date(d.created_at).toLocaleString()}
-                    </span>
-                  </div>
+                  {d.scaling_type === 'vertical' ? (
+                    <div style={{ display: 'flex', gap: 24, fontSize: 13, color: '#94a3b8', flexWrap: 'wrap' }}>
+                      {d.current_cpu && <span>
+                        CPU: <strong style={{ color: '#f1f5f9' }}>{d.current_cpu}</strong>
+                        <span style={{ color: '#475569', margin: '0 6px' }}>→</span>
+                        <strong style={{ color: '#4ade80' }}>{d.recommended_cpu}</strong>
+                      </span>}
+                      {d.current_memory && <span>
+                        Memory: <strong style={{ color: '#f1f5f9' }}>{d.current_memory}</strong>
+                        <span style={{ color: '#475569', margin: '0 6px' }}>→</span>
+                        <strong style={{ color: '#4ade80' }}>{d.recommended_memory}</strong>
+                      </span>}
+                      {d.confidence != null && <span>
+                        Confidence: <strong style={{ color: '#f1f5f9' }}>{(d.confidence * 100).toFixed(0)}%</strong>
+                      </span>}
+                      {d.savings_per_month != null && d.savings_per_month > 0 && <span style={{ color: '#4ade80' }}>
+                        Savings: <strong>${d.savings_per_month.toFixed(2)}/mo</strong>
+                      </span>}
+                      <span style={{ fontSize: 12 }}>{new Date(d.created_at).toLocaleString()}</span>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 24, fontSize: 13, color: '#94a3b8' }}>
+                      <span>
+                        Replicas:{' '}
+                        <strong style={{ color: '#f1f5f9' }}>{d.current_replicas}</strong>
+                        <span style={{ color: '#475569', margin: '0 6px' }}>→</span>
+                        <strong style={{ color: (d.desired_replicas ?? 0) > (d.current_replicas ?? 0) ? '#22c55e' : '#ef4444' }}>
+                          {d.desired_replicas}
+                        </strong>
+                      </span>
+                      {d.decision && d.decision.PeakCPU > 0 && (
+                        <span>Peak CPU: <strong style={{ color: '#f1f5f9' }}>{(d.decision.PeakCPU * 100).toFixed(0)}%</strong></span>
+                      )}
+                      <span style={{ fontSize: 12 }}>{new Date(d.created_at).toLocaleString()}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>

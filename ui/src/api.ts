@@ -39,12 +39,22 @@ export interface ScalingRecord {
   timestamp: string
   namespace: string
   deployment_name: string
-  old_replicas: number
-  new_replicas: number
+  container_name?: string
   reason: string
-  peak_cpu: number
-  sustained_cpu: number
   applied: boolean
+  // horizontal
+  old_replicas?: number
+  new_replicas?: number
+  peak_cpu?: number
+  sustained_cpu?: number
+  // vertical
+  old_cpu?: string
+  new_cpu?: string
+  old_memory?: string
+  new_memory?: string
+  confidence?: number
+  savings_per_hour?: number
+  savings_per_month?: number
 }
 
 export interface OptimizerConfigSummary {
@@ -61,12 +71,24 @@ export interface DryRunDecision {
   created_at: string
   namespace: string
   deployment_name: string
-  current_replicas: number
-  desired_replicas: number
   reason: string
-  decision: ScaleDecision
+  scaling_type: 'horizontal' | 'vertical'
   status: 'pending' | 'approved' | 'rejected'
   reviewed_at?: string
+  // horizontal
+  current_replicas?: number
+  desired_replicas?: number
+  decision?: ScaleDecision
+  // vertical
+  container_name?: string
+  workload_kind?: string
+  current_cpu?: string
+  recommended_cpu?: string
+  current_memory?: string
+  recommended_memory?: string
+  confidence?: number
+  savings_per_hour?: number
+  savings_per_month?: number
 }
 
 async function get<T>(path: string): Promise<T> {

@@ -170,16 +170,31 @@ const (
 
 // DryRunDecision holds a pending scaling decision awaiting user action.
 type DryRunDecision struct {
-	ID              string                   `json:"id"`
-	CreatedAt       time.Time                `json:"created_at"`
-	Namespace       string                   `json:"namespace"`
-	DeploymentName  string                   `json:"deployment_name"`
-	CurrentReplicas int32                    `json:"current_replicas"`
-	DesiredReplicas int32                    `json:"desired_replicas"`
-	Reason          string                   `json:"reason"`
-	Decision        forecaster.ScaleDecision `json:"decision"`
-	Status          DryRunStatus             `json:"status"`
-	ReviewedAt      *time.Time               `json:"reviewed_at,omitempty"`
+	ID        string       `json:"id"`
+	CreatedAt time.Time    `json:"created_at"`
+	Namespace string       `json:"namespace"`
+	Reason    string       `json:"reason"`
+	Status    DryRunStatus `json:"status"`
+	// ScalingType is "horizontal" or "vertical"
+	ScalingType    string     `json:"scaling_type"`
+	DeploymentName string     `json:"deployment_name"`
+	ReviewedAt     *time.Time `json:"reviewed_at,omitempty"`
+
+	// Horizontal scaling fields (ML forecaster)
+	CurrentReplicas int32                    `json:"current_replicas,omitempty"`
+	DesiredReplicas int32                    `json:"desired_replicas,omitempty"`
+	Decision        forecaster.ScaleDecision `json:"decision,omitempty"`
+
+	// Vertical scaling fields (Holt-Winters)
+	ContainerName     string  `json:"container_name,omitempty"`
+	WorkloadKind      string  `json:"workload_kind,omitempty"`
+	CurrentCPU        string  `json:"current_cpu,omitempty"`
+	RecommendedCPU    string  `json:"recommended_cpu,omitempty"`
+	CurrentMemory     string  `json:"current_memory,omitempty"`
+	RecommendedMemory string  `json:"recommended_memory,omitempty"`
+	Confidence        float64 `json:"confidence,omitempty"`
+	SavingsPerHour    float64 `json:"savings_per_hour,omitempty"`
+	SavingsPerMonth   float64 `json:"savings_per_month,omitempty"`
 }
 
 // DryRunQueue is a thread-safe store for dry-run decisions.

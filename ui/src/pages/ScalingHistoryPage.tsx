@@ -21,6 +21,43 @@ function reasonBadge(reason: string) {
   )
 }
 
+function ChangeCell({ r }: { r: ScalingRecord }) {
+  if (r.old_cpu || r.old_memory) {
+    return (
+      <div style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {r.old_cpu && (
+          <span>
+            CPU: <span style={{ color: '#94a3b8' }}>{r.old_cpu}</span>
+            <span style={{ color: '#475569', margin: '0 4px' }}>→</span>
+            <span style={{ color: '#4ade80', fontWeight: 600 }}>{r.new_cpu}</span>
+          </span>
+        )}
+        {r.old_memory && (
+          <span>
+            Mem: <span style={{ color: '#94a3b8' }}>{r.old_memory}</span>
+            <span style={{ color: '#475569', margin: '0 4px' }}>→</span>
+            <span style={{ color: '#4ade80', fontWeight: 600 }}>{r.new_memory}</span>
+          </span>
+        )}
+      </div>
+    )
+  }
+  return (
+    <span>
+      <span style={{ color: '#94a3b8' }}>{r.old_replicas ?? '—'}</span>
+      <span style={{ color: '#475569', margin: '0 6px' }}>→</span>
+      <span style={{
+        fontWeight: 700,
+        color: (r.new_replicas ?? 0) > (r.old_replicas ?? 0) ? '#22c55e'
+          : (r.new_replicas ?? 0) < (r.old_replicas ?? 0) ? '#ef4444'
+          : '#94a3b8',
+      }}>
+        {r.new_replicas ?? '—'}
+      </span>
+    </span>
+  )
+}
+
 export function ScalingHistoryPage() {
   const [records, setRecords] = useState<ScalingRecord[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -46,11 +83,11 @@ export function ScalingHistoryPage() {
           <thead>
             <tr>
               <th>Time</th>
-              <th>Deployment</th>
+              <th>Deployment / Container</th>
               <th>Namespace</th>
-              <th>Replicas</th>
+              <th>Change</th>
               <th>Reason</th>
-              <th>Peak CPU</th>
+              <th>Savings/mo</th>
               <th>Applied</th>
             </tr>
           </thead>
@@ -62,23 +99,17 @@ export function ScalingHistoryPage() {
                 <td style={{ color: '#94a3b8', fontSize: 12, whiteSpace: 'nowrap' }}>
                   {new Date(r.timestamp).toLocaleString()}
                 </td>
-                <td style={{ fontFamily: 'monospace', fontSize: 13 }}>{r.deployment_name}</td>
-                <td style={{ color: '#94a3b8' }}>{r.namespace}</td>
-                <td>
-                  <span style={{ color: '#94a3b8' }}>{r.old_replicas}</span>
-                  <span style={{ color: '#475569', margin: '0 6px' }}>→</span>
-                  <span style={{
-                    fontWeight: 700,
-                    color: r.new_replicas > r.old_replicas ? '#22c55e'
-                      : r.new_replicas < r.old_replicas ? '#ef4444'
-                      : '#94a3b8',
-                  }}>
-                    {r.new_replicas}
-                  </span>
+                <td style={{ fontFamily: 'monospace', fontSize: 13 }}>
+                  {r.deployment_name}
+                  {r.container_name && <span style={{ color: '#64748b', fontSize: 11 }}> / {r.container_name}</span>}
                 </td>
+                <td style={{ color: '#94a3b8' }}>{r.namespace}</td>
+                <td><ChangeCell r={r} /></td>
                 <td>{reasonBadge(r.reason)}</td>
-                <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#94a3b8' }}>
-                  {r.peak_cpu > 0 ? `${(r.peak_cpu * 100).toFixed(0)}%` : '—'}
+                <td style={{ fontFamily: 'monospace', fontSize: 12, color: '#4ade80' }}>
+                  {r.savings_per_month != null && r.savings_per_month > 0
+                    ? `$${r.savings_per_month.toFixed(2)}`
+                    : '—'}
                 </td>
                 <td>
                   <span style={{ color: r.applied ? '#22c55e' : '#f59e0b', fontSize: 12 }}>
