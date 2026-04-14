@@ -178,12 +178,8 @@ func (s *Server) handlePods(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	ns := r.URL.Query().Get("namespace")
-	if ns == "" {
-		ns = s.namespace
-	}
-
-	podList, err := s.kubeClient.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{})
+	// List pods from all namespaces so the UI shows the full cluster picture.
+	podList, err := s.kubeClient.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list pods: "+err.Error())
 		return
@@ -195,13 +191,17 @@ func (s *Server) handlePods(w http.ResponseWriter, r *http.Request) {
 		mem int64
 	}{}
 	if s.metricsStorage != nil {
-		for _, pm := range s.metricsStorage.GetMetricsByNamespace(ns, 5*time.Minute) {
+		for _, metrics := range s.metricsStorage.GetAllMetrics() {
+			if len(metrics) == 0 {
+				continue
+			}
+			latest := metrics[len(metrics)-1]
 			var cpu, mem int64
-			for _, c := range pm.Containers {
+			for _, c := range latest.Containers {
 				cpu += c.UsageCPU
 				mem += c.UsageMemory
 			}
-			metricsBuf[pm.PodName] = struct {
+			metricsBuf[latest.PodName] = struct {
 				cpu int64
 				mem int64
 			}{cpu, mem}

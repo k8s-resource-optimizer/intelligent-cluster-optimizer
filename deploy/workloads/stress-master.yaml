@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stress-master
+  namespace: workloads
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stress-master
+  template:
+    metadata:
+      labels:
+        app: stress-master
+    spec:
+      containers:
+      - name: stress
+        image: polinux/stress-ng
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          while true; do
+            stress-ng --cpu 3 --vm 1 --vm-bytes 512M --timeout 300s
+            stress-ng --cpu 1 --vm 1 --vm-bytes 64M --timeout 300s
+          done
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: "4"
+            memory: 768Mi
