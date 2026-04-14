@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -25,14 +26,28 @@ type ScalingRecord struct {
 	Timestamp      time.Time `json:"timestamp"`
 	Namespace      string    `json:"namespace"`
 	DeploymentName string    `json:"deployment_name"`
-	OldReplicas    int32     `json:"old_replicas"`
-	NewReplicas    int32     `json:"new_replicas"`
+	ContainerName  string    `json:"container_name,omitempty"`
 	// Reason is one of "ML", "HoltWinters", "Manual"
-	Reason       string  `json:"reason"`
-	PeakCPU      float64 `json:"peak_cpu"`
-	SustainedCPU float64 `json:"sustained_cpu"`
+	Reason string `json:"reason"`
 	// Applied is false when the decision was produced in dry-run mode.
 	Applied bool `json:"applied"`
+
+	// Horizontal scaling fields (ML forecaster)
+	OldReplicas  int32   `json:"old_replicas,omitempty"`
+	NewReplicas  int32   `json:"new_replicas,omitempty"`
+	PeakCPU      float64 `json:"peak_cpu,omitempty"`
+	SustainedCPU float64 `json:"sustained_cpu,omitempty"`
+
+	// Vertical scaling fields (Holt-Winters)
+	OldCPU     string  `json:"old_cpu,omitempty"`
+	NewCPU     string  `json:"new_cpu,omitempty"`
+	OldMemory  string  `json:"old_memory,omitempty"`
+	NewMemory  string  `json:"new_memory,omitempty"`
+	Confidence float64 `json:"confidence,omitempty"`
+
+	// Cost savings
+	SavingsPerHour  float64 `json:"savings_per_hour,omitempty"`
+	SavingsPerMonth float64 `json:"savings_per_month,omitempty"`
 }
 
 // ScalingHistoryStore keeps the last maxSize scaling decisions in memory.
@@ -64,6 +79,23 @@ func (s *ScalingHistoryStore) Add(r ScalingRecord) {
 	if len(s.records) > s.maxSize {
 		s.records = s.records[len(s.records)-s.maxSize:]
 	}
+}
+
+// GetSnapshotJSON returns a JSON-encoded array of all records for backup purposes.
+func (s *ScalingHistoryStore) GetSnapshotJSON() ([]byte, error) {
+	return json.Marshal(s.GetAll())
+}
+
+// RestoreFromJSON loads records from a JSON-encoded array (used during backup restore).
+func (s *ScalingHistoryStore) RestoreFromJSON(data []byte) error {
+	var records []ScalingRecord
+	if err := json.Unmarshal(data, &records); err != nil {
+		return err
+	}
+	for _, r := range records {
+		s.Add(r)
+	}
+	return nil
 }
 
 // GetAll returns a copy of all recorded decisions, newest first.

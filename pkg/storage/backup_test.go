@@ -33,7 +33,7 @@ func TestBackupManager_CreateBackup(t *testing.T) {
 	})
 
 	// Create backup manager
-	bm := NewBackupManager(storage, BackupConfig{
+	bm := NewBackupManager(storage, nil, BackupConfig{
 		Enabled:        true,
 		StorageDir:     tempDir,
 		RetentionCount: 5,
@@ -88,7 +88,7 @@ func TestBackupManager_RestoreFromBackup(t *testing.T) {
 	})
 
 	// Create backup
-	bm := NewBackupManager(originalStorage, BackupConfig{
+	bm := NewBackupManager(originalStorage, nil, BackupConfig{
 		Enabled:        true,
 		StorageDir:     tempDir,
 		RetentionCount: 5,
@@ -102,7 +102,7 @@ func TestBackupManager_RestoreFromBackup(t *testing.T) {
 	newStorage := NewStorage()
 
 	// Create new backup manager for restore
-	restoreBM := NewBackupManager(newStorage, BackupConfig{
+	restoreBM := NewBackupManager(newStorage, nil, BackupConfig{
 		Enabled:    true,
 		StorageDir: tempDir,
 	}, zap.NewNop())
@@ -144,7 +144,7 @@ func TestBackupManager_RetentionPolicy(t *testing.T) {
 	})
 
 	// Create backup manager with retention of 3
-	bm := NewBackupManager(storage, BackupConfig{
+	bm := NewBackupManager(storage, nil, BackupConfig{
 		Enabled:        true,
 		StorageDir:     tempDir,
 		RetentionCount: 3,
@@ -186,7 +186,7 @@ func TestBackupManager_ListBackups(t *testing.T) {
 	})
 
 	// Create backup manager
-	bm := NewBackupManager(storage, BackupConfig{
+	bm := NewBackupManager(storage, nil, BackupConfig{
 		Enabled:        true,
 		StorageDir:     tempDir,
 		RetentionCount: 10,
@@ -239,7 +239,7 @@ func TestBackupManager_DisabledBackup(t *testing.T) {
 	storage := NewStorage()
 
 	// Create backup manager with disabled backups
-	bm := NewBackupManager(storage, BackupConfig{
+	bm := NewBackupManager(storage, nil, BackupConfig{
 		Enabled: false,
 	}, zap.NewNop())
 
@@ -269,7 +269,7 @@ func TestBackupManager_AtomicWrites(t *testing.T) {
 	})
 
 	// Create backup manager
-	bm := NewBackupManager(storage, BackupConfig{
+	bm := NewBackupManager(storage, nil, BackupConfig{
 		Enabled:    true,
 		StorageDir: tempDir,
 	}, zap.NewNop())
@@ -302,7 +302,7 @@ func TestBackupManager_EmptyStorage(t *testing.T) {
 	storage := NewStorage()
 
 	// Create backup manager
-	bm := NewBackupManager(storage, BackupConfig{
+	bm := NewBackupManager(storage, nil, BackupConfig{
 		Enabled:    true,
 		StorageDir: tempDir,
 	}, zap.NewNop())

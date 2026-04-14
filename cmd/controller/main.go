@@ -150,6 +150,7 @@ func main() {
 	// ── Backup manager ───────────────────────────────────────────────────────
 	backupMgr := storage.NewBackupManager(
 		reconciler.GetMetricsStorage(),
+		scalingHistory,
 		storage.BackupConfig{Enabled: true},
 		zapLogger,
 	)

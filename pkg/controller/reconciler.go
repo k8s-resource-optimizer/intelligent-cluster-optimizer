@@ -669,6 +669,27 @@ func (r *Reconciler) processRecommendations(ctx context.Context, config *optimiz
 				r.applyCooldownsMu.Lock()
 				r.applyCooldowns[cooldownKey] = time.Now()
 				r.applyCooldownsMu.Unlock()
+
+				if r.scalingHistory != nil {
+					sr := apiserver.ScalingRecord{
+						Namespace:      rec.Namespace,
+						DeploymentName: rec.WorkloadName,
+						ContainerName:  rec.ContainerName,
+						Reason:         "HoltWinters",
+						Applied:        true,
+						OldCPU:         rec.CurrentCPU,
+						NewCPU:         rec.RecommendedCPU,
+						OldMemory:      rec.CurrentMemory,
+						NewMemory:      rec.RecommendedMemory,
+						Confidence:     containerRec.Confidence,
+					}
+					if containerRec.EstimatedSavings != nil {
+						sr.SavingsPerHour = containerRec.EstimatedSavings.TotalSavingsPerHour
+						sr.SavingsPerMonth = containerRec.EstimatedSavings.SavingsPerMonth
+					}
+					r.scalingHistory.Add(sr)
+				}
+
 				klog.Infof("[LIVE] Successfully applied changes to %s/%s/%s",
 					rec.Namespace, rec.WorkloadName, rec.ContainerName)
 			}

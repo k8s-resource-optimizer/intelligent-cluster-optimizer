@@ -14,15 +14,29 @@ import (
 	"go.uber.org/zap"
 )
 
+// ScalingHistorySnapshotter is implemented by apiserver.ScalingHistoryStore.
+// Using an interface avoids an import cycle between storage and apiserver.
+type ScalingHistorySnapshotter interface {
+	GetSnapshotJSON() ([]byte, error)
+	RestoreFromJSON([]byte) error
+}
+
 // BackupManager manages periodic backups of the metrics storage
 type BackupManager struct {
 	storage        *InMemoryStorage
+	scalingHistory ScalingHistorySnapshotter
 	storageDir     string
 	retentionCount int
 	backupInterval time.Duration
 	logger         *zap.Logger
 	stopCh         chan struct{}
 	enabled        bool
+}
+
+// backupData is the on-disk format for a single backup file.
+type backupData struct {
+	Metrics        map[string][]models.PodMetric `json:"metrics"`
+	ScalingHistory json.RawMessage               `json:"scaling_history,omitempty"`
 }
 
 // BackupConfig contains configuration for the backup manager
@@ -34,7 +48,7 @@ type BackupConfig struct {
 }
 
 // NewBackupManager creates a new backup manager
-func NewBackupManager(storage *InMemoryStorage, config BackupConfig, logger *zap.Logger) *BackupManager {
+func NewBackupManager(storage *InMemoryStorage, history ScalingHistorySnapshotter, config BackupConfig, logger *zap.Logger) *BackupManager {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -56,6 +70,7 @@ func NewBackupManager(storage *InMemoryStorage, config BackupConfig, logger *zap
 
 	return &BackupManager{
 		storage:        storage,
+		scalingHistory: history,
 		storageDir:     config.StorageDir,
 		retentionCount: config.RetentionCount,
 		backupInterval: config.BackupInterval,
@@ -129,7 +144,14 @@ func (bm *BackupManager) CreateBackup() error {
 	start := time.Now()
 
 	// Take snapshot of current state
-	snapshot := bm.storage.Snapshot()
+	data := backupData{
+		Metrics: bm.storage.Snapshot(),
+	}
+	if bm.scalingHistory != nil {
+		if histJSON, err := bm.scalingHistory.GetSnapshotJSON(); err == nil {
+			data.ScalingHistory = histJSON
+		}
+	}
 
 	// Generate backup filename with timestamp
 	timestamp := time.Now().Format("20060102-150405")
@@ -150,7 +172,7 @@ func (bm *BackupManager) CreateBackup() error {
 
 	// Marshal and write data
 	encoder := json.NewEncoder(gzipWriter)
-	if err := encoder.Encode(snapshot); err != nil {
+	if err := encoder.Encode(data); err != nil {
 		_ = gzipWriter.Close()  // #nosec G104 - Cleanup, error already being returned
 		_ = file.Close()        // #nosec G104 - Cleanup, error already being returned
 		_ = os.Remove(tempPath) // #nosec G104 - Best effort cleanup
@@ -187,7 +209,8 @@ func (bm *BackupManager) CreateBackup() error {
 		zap.String("file", filename),
 		zap.Int64("size_bytes", fileSize),
 		zap.Duration("duration", duration),
-		zap.Int("metric_pods", len(snapshot)))
+		zap.Int("metric_pods", len(data.Metrics)),
+		zap.Int("scaling_records", len(data.ScalingHistory)))
 
 	// Clean up old backups
 	if err := bm.cleanupOldBackups(); err != nil {
@@ -267,19 +290,33 @@ func (bm *BackupManager) RestoreFromBackup(backupPath string) error {
 	}
 	defer gzipReader.Close()
 
-	// Decode backup data
-	var data map[string][]models.PodMetric
-	decoder := json.NewDecoder(gzipReader)
-	if err := decoder.Decode(&data); err != nil {
+	// Decode into a raw message first to support both old and new format
+	var rawMsg json.RawMessage
+	if err := json.NewDecoder(gzipReader).Decode(&rawMsg); err != nil {
 		return fmt.Errorf("failed to decode backup data: %w", err)
 	}
 
-	// Restore to storage
-	bm.storage.Restore(data)
+	// Try new format (backupData struct), fall back to legacy metrics-only map
+	var bd backupData
+	if err := json.Unmarshal(rawMsg, &bd); err != nil || bd.Metrics == nil {
+		var legacy map[string][]models.PodMetric
+		if err := json.Unmarshal(rawMsg, &legacy); err != nil {
+			return fmt.Errorf("failed to decode backup data: %w", err)
+		}
+		bd.Metrics = legacy
+	}
+
+	bm.storage.Restore(bd.Metrics)
+	if bm.scalingHistory != nil && len(bd.ScalingHistory) > 0 {
+		if err := bm.scalingHistory.RestoreFromJSON(bd.ScalingHistory); err != nil {
+			bm.logger.Warn("failed to restore scaling history", zap.Error(err))
+		}
+	}
 
 	bm.logger.Info("backup restored successfully",
 		zap.String("file", backupPath),
-		zap.Int("pods", len(data)))
+		zap.Int("pods", len(bd.Metrics)),
+		zap.Int("scaling_records", len(bd.ScalingHistory)))
 
 	return nil
 }
