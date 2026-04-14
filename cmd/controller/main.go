@@ -155,6 +155,11 @@ func main() {
 		storage.BackupConfig{Enabled: true},
 		zapLogger,
 	)
+	if err := backupMgr.RestoreLatest(); err != nil {
+		klog.Infof("No backup to restore (non-fatal): %v", err)
+	} else {
+		klog.Info("Restored latest backup successfully")
+	}
 	if err := backupMgr.Start(); err != nil {
 		klog.Warningf("Backup manager failed to start (non-fatal): %v", err)
 	} else {
