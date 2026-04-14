@@ -139,8 +139,8 @@ func (r *Resolver) resolveFromSpec(spec *optimizerv1alpha1.OptimizerConfigSpec) 
 		CPUPercentile:           95,
 		MemoryPercentile:        95,
 		SafetyMargin:            1.2,
-		MinSamples:              100,
-		HistoryDuration:         24 * time.Hour,
+		MinSamples:              10,
+		HistoryDuration:         2 * time.Hour,
 		MinConfidence:           50.0,
 		ApplyDelay:              0,
 		MaxChangePercent:        0, // No limit

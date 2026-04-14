@@ -74,6 +74,8 @@ type ContainerRecommendation struct {
 	CurrentMemory     int64 // bytes
 	RecommendedCPU    int64 // millicores
 	RecommendedMemory int64 // bytes
+	LimitCPU          int64 // millicores — current container CPU limit
+	LimitMemory       int64 // bytes    — current container memory limit
 	SampleCount       int
 	CPUPercentile     int
 	MemoryPercentile  int
@@ -400,6 +402,8 @@ func (e *Engine) groupByWorkload(metrics []models.PodMetric) map[string]map[stri
 				usageMemory:   cm.UsageMemory,
 				requestCPU:    cm.RequestCPU,
 				requestMemory: cm.RequestMemory,
+				limitCPU:      cm.LimitCPU,
+				limitMemory:   cm.LimitMemory,
 			}
 			result[workloadName][cm.ContainerName] = append(
 				result[workloadName][cm.ContainerName],
@@ -417,6 +421,8 @@ type containerSample struct {
 	usageMemory   int64
 	requestCPU    int64
 	requestMemory int64
+	limitCPU      int64
+	limitMemory   int64
 }
 
 // generateWorkloadRecommendationWithOOM generates recommendations with OOM-aware memory adjustments
@@ -593,14 +599,16 @@ func (e *Engine) generateContainerRecommendationWithOOM(
 	memoryValues := make([]int64, len(samples))
 	timestamps := make([]time.Time, len(samples))
 
-	var currentCPU, currentMemory int64
+	var currentCPU, currentMemory, limitCPU, limitMemory int64
 	for i, s := range samples {
 		cpuValues[i] = s.usageCPU
 		memoryValues[i] = s.usageMemory
 		timestamps[i] = s.timestamp
-		// Use the most recent request values as "current"
+		// Use the most recent request/limit values as "current"
 		currentCPU = s.requestCPU
 		currentMemory = s.requestMemory
+		limitCPU = s.limitCPU
+		limitMemory = s.limitMemory
 	}
 
 	// Calculate percentiles
@@ -679,6 +687,8 @@ func (e *Engine) generateContainerRecommendationWithOOM(
 		CurrentMemory:     currentMemory,
 		RecommendedCPU:    recommendedCPU,
 		RecommendedMemory: recommendedMemory,
+		LimitCPU:          limitCPU,
+		LimitMemory:       limitMemory,
 		SampleCount:       len(samples),
 		CPUPercentile:     cpuPercentile,
 		MemoryPercentile:  memoryPercentile,

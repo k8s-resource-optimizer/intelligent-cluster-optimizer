@@ -590,6 +590,21 @@ func (r *Reconciler) processRecommendations(ctx context.Context, config *optimiz
 		}
 
 		for _, containerRec := range workloadRec.Containers {
+			// Cap recommendations to the existing resource limits so we never
+			// set request > limit (which Kubernetes rejects).
+			if containerRec.RecommendedCPU > containerRec.LimitCPU && containerRec.LimitCPU > 0 {
+				klog.V(3).Infof("[%s] Capping recommended CPU for %s/%s/%s: %dm -> %dm (limit)",
+					mode, workloadRec.Namespace, workloadRec.WorkloadName, containerRec.ContainerName,
+					containerRec.RecommendedCPU, containerRec.LimitCPU)
+				containerRec.RecommendedCPU = containerRec.LimitCPU
+			}
+			if containerRec.RecommendedMemory > containerRec.LimitMemory && containerRec.LimitMemory > 0 {
+				klog.V(3).Infof("[%s] Capping recommended Memory for %s/%s/%s: %d -> %d (limit)",
+					mode, workloadRec.Namespace, workloadRec.WorkloadName, containerRec.ContainerName,
+					containerRec.RecommendedMemory, containerRec.LimitMemory)
+				containerRec.RecommendedMemory = containerRec.LimitMemory
+			}
+
 			// Convert to applier format
 			rec := &applier.ResourceRecommendation{
 				Namespace:         workloadRec.Namespace,
