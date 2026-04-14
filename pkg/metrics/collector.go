@@ -83,11 +83,11 @@ func (c *MetricsCollector) GetPodMetrics(namespace string) ([]models.PodMetric, 
 				if containerSpec.Name == containerUsage.Name {
 					// Extract Requests (if they exist)
 					reqCPU = containerSpec.Resources.Requests.Cpu().MilliValue()
-					reqMem = containerSpec.Resources.Requests.Memory().Value() / (1024 * 1024)
+					reqMem = containerSpec.Resources.Requests.Memory().Value()
 
 					// Extract Limits (if they exist)
 					limCPU = containerSpec.Resources.Limits.Cpu().MilliValue()
-					limMem = containerSpec.Resources.Limits.Memory().Value() / (1024 * 1024)
+					limMem = containerSpec.Resources.Limits.Memory().Value()
 					break
 				}
 			}
@@ -98,7 +98,7 @@ func (c *MetricsCollector) GetPodMetrics(namespace string) ([]models.PodMetric, 
 
 				// Usage (Real-time)
 				UsageCPU:    containerUsage.Usage.Cpu().MilliValue(),
-				UsageMemory: containerUsage.Usage.Memory().Value() / (1024 * 1024),
+				UsageMemory: containerUsage.Usage.Memory().Value(),
 
 				// Spec (Configured)
 				RequestCPU:    reqCPU,

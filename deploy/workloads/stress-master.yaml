@@ -20,13 +20,13 @@ spec:
         args:
         - |
           while true; do
-            stress-ng --cpu 3 --vm 1 --vm-bytes 512M --timeout 300s
-            stress-ng --cpu 1 --vm 1 --vm-bytes 64M --timeout 300s
+            stress-ng --cpu 1 --cpu-load 50 --vm 1 --vm-bytes 220M --timeout 300s
+            sleep 300
           done
         resources:
           requests:
-            cpu: 200m
-            memory: 256Mi
+            cpu: 100m
+            memory: 64Mi
           limits:
-            cpu: "4"
-            memory: 768Mi
+            cpu: "2"
+            memory: 512Mi
