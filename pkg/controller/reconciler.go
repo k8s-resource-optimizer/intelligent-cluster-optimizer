@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"intelligent-cluster-optimizer/pkg/anomaly"
@@ -64,6 +65,12 @@ type Reconciler struct {
 	scalingHistory *apiserver.ScalingHistoryStore
 	forecastCache  *apiserver.ForecastCache
 	dryRunQueue    *apiserver.DryRunQueue
+
+	// applyCooldowns tracks the last time a change was applied per workload container.
+	// Key: "namespace/kind/name/container". Prevents thrashing when Holt-Winters
+	// produces slightly different recommendations on consecutive cycles.
+	applyCooldowns   map[string]time.Time
+	applyCooldownsMu sync.Mutex
 }
 
 func NewReconciler(kubeClient kubernetes.Interface, eventRecorder record.EventRecorder) *Reconciler {
@@ -84,8 +91,11 @@ func NewReconciler(kubeClient kubernetes.Interface, eventRecorder record.EventRe
 		paretoHelper:           pareto.NewRecommendationHelper(),
 		gitopsExporter:         gitops.NewExporter(),
 		slaHealthChecker:       sla.NewHealthChecker(),
+		applyCooldowns:         make(map[string]time.Time),
 	}
 }
+
+const applyCooldownDuration = 5 * time.Minute
 
 // SetMetricsStorage allows injecting a shared metrics storage instance
 func (r *Reconciler) SetMetricsStorage(store *storage.InMemoryStorage) {
@@ -626,6 +636,20 @@ func (r *Reconciler) processRecommendations(ctx context.Context, config *optimiz
 				rec.CurrentMemory, rec.RecommendedMemory, containerRec.MemoryPercentile,
 				containerRec.Confidence, containerRec.SampleCount, savingsInfo)
 
+			// COOLDOWN CHECK: skip if this workload container was updated recently
+			if !config.Spec.DryRun {
+				cooldownKey := fmt.Sprintf("%s/%s/%s/%s", rec.Namespace, rec.WorkloadKind, rec.WorkloadName, rec.ContainerName)
+				r.applyCooldownsMu.Lock()
+				lastApplied, hasCooldown := r.applyCooldowns[cooldownKey]
+				r.applyCooldownsMu.Unlock()
+				if hasCooldown && time.Since(lastApplied) < applyCooldownDuration {
+					klog.V(3).Infof("[LIVE] Skipping %s/%s/%s: cooldown active (last applied %s ago)",
+						rec.Namespace, rec.WorkloadName, rec.ContainerName, time.Since(lastApplied).Round(time.Second))
+					skippedCount++
+					continue
+				}
+			}
+
 			applyResult, err := r.applier.Apply(ctx, rec, config.Spec.DryRun)
 			if err != nil {
 				klog.Warningf("[%s] Failed to apply recommendation for %s/%s/%s: %v",
@@ -641,6 +665,10 @@ func (r *Reconciler) processRecommendations(ctx context.Context, config *optimiz
 				}
 			} else if applyResult.Applied {
 				appliedCount++
+				cooldownKey := fmt.Sprintf("%s/%s/%s/%s", rec.Namespace, rec.WorkloadKind, rec.WorkloadName, rec.ContainerName)
+				r.applyCooldownsMu.Lock()
+				r.applyCooldowns[cooldownKey] = time.Now()
+				r.applyCooldownsMu.Unlock()
 				klog.Infof("[LIVE] Successfully applied changes to %s/%s/%s",
 					rec.Namespace, rec.WorkloadName, rec.ContainerName)
 			}
