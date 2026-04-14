@@ -73,6 +73,12 @@ func NewOptimizerController(
 			}
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
+			oldConfig, ok1 := oldObj.(*optimizerv1alpha1.OptimizerConfig)
+			newConfig, ok2 := newObj.(*optimizerv1alpha1.OptimizerConfig)
+			if ok1 && ok2 && oldConfig.Generation == newConfig.Generation {
+				// Status-only update — the periodic RequeueAfter timer handles the next run
+				return
+			}
 			key, err := cache.MetaNamespaceKeyFunc(newObj)
 			if err == nil {
 				controller.workqueue.Add(key)
