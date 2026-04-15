@@ -653,6 +653,17 @@ func (e *Engine) generateContainerRecommendationWithOOM(
 	recommendedCPU = e.applyThresholds(recommendedCPU, thresholds, "cpu")
 	recommendedMemory = e.applyThresholds(recommendedMemory, thresholds, "memory")
 
+	// Enforce absolute minimums regardless of config — prevents unsafe recommendations
+	// when pods are idle (e.g., stress-ng finishes and usage drops to 0)
+	const minCPUMillicores = int64(10)           // 10m
+	const minMemoryBytes = int64(32 * 1024 * 1024) // 32Mi
+	if recommendedCPU < minCPUMillicores {
+		recommendedCPU = minCPUMillicores
+	}
+	if recommendedMemory < minMemoryBytes {
+		recommendedMemory = minMemoryBytes
+	}
+
 	// Calculate detailed confidence score using all metrics
 	// We use CPU values for confidence calculation as they typically have more variance
 	confidenceDetails := e.confidenceCalculator.CalculateFromSamples(
