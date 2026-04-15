@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api, type ScalingRecord } from '../api'
 
 function reasonBadge(reason: string) {
@@ -61,16 +61,55 @@ function ChangeCell({ r }: { r: ScalingRecord }) {
 export function ScalingHistoryPage() {
   const [records, setRecords] = useState<ScalingRecord[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [filter, setFilter] = useState<string>('all')
 
   useEffect(() => {
     api.scalingHistory()
-      .then(data => { setRecords(data); setError(null) })
+      .then(data => {
+        // Sort newest first
+        const sorted = [...data].sort(
+          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        )
+        setRecords(sorted)
+        setError(null)
+      })
       .catch(e => setError(String(e)))
   }, [])
 
+  // Unique deployment names for filter dropdown
+  const deployments = useMemo(() => {
+    const names = Array.from(new Set(records.map(r => r.deployment_name))).sort()
+    return names
+  }, [records])
+
+  const filtered = useMemo(() => {
+    if (filter === 'all') return records
+    return records.filter(r => r.deployment_name === filter)
+  }, [records, filter])
+
   return (
     <div>
-      <h2>Scaling History</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <h2 style={{ margin: 0 }}>Scaling History</h2>
+        <select
+          value={filter}
+          onChange={e => setFilter(e.target.value)}
+          style={{
+            padding: '6px 12px',
+            borderRadius: 5,
+            border: '1px solid #1e2535',
+            background: '#0d1117',
+            color: '#94a3b8',
+            fontSize: 13,
+            cursor: 'pointer',
+          }}
+        >
+          <option value="all">All deployments</option>
+          {deployments.map(name => (
+            <option key={name} value={name}>{name}</option>
+          ))}
+        </select>
+      </div>
 
       {error && (
         <div style={{ color: '#fca5a5', background: '#450a0a', padding: '10px 14px', borderRadius: 6, marginBottom: 16, fontSize: 13 }}>
@@ -92,9 +131,9 @@ export function ScalingHistoryPage() {
             </tr>
           </thead>
           <tbody>
-            {records.length === 0 && !error ? (
+            {filtered.length === 0 && !error ? (
               <tr><td colSpan={7} style={{ color: '#64748b', textAlign: 'center', padding: 32 }}>No scaling decisions yet</td></tr>
-            ) : records.map(r => (
+            ) : filtered.map(r => (
               <tr key={r.id}>
                 <td style={{ color: '#94a3b8', fontSize: 12, whiteSpace: 'nowrap' }}>
                   {new Date(r.timestamp).toLocaleString()}

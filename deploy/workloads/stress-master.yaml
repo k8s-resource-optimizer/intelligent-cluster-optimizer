@@ -8,6 +8,8 @@ spec:
   selector:
     matchLabels:
       app: stress-master
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
@@ -20,7 +22,7 @@ spec:
         args:
         - |
           while true; do
-            stress-ng --cpu 1 --cpu-load 50 --vm 1 --vm-bytes 220M --timeout 300s
+            stress-ng --cpu 1 --cpu-load 25 --vm 1 --vm-bytes 220M --timeout 300s
             sleep 300
           done
         resources:
