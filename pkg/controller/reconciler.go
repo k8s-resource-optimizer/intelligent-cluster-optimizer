@@ -625,8 +625,8 @@ func (r *Reconciler) processRecommendations(ctx context.Context, config *optimiz
 				continue
 			}
 
-			// SAFETY CHECK: Enforce MaxChangePercent limit
-			if resolvedSettings != nil {
+			// SAFETY CHECK: Enforce MaxChangePercent limit (skip in dry-run — queue all candidates)
+			if resolvedSettings != nil && !config.Spec.DryRun {
 				changePercent := containerRec.MaxChangePercent()
 				shouldApply, reason := resolvedSettings.ShouldApplyRecommendation(containerRec.Confidence, changePercent)
 				if !shouldApply {
