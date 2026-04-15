@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stress-cyclic
+  namespace: workloads
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stress-cyclic
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: stress-cyclic
+    spec:
+      containers:
+      - name: stress
+        image: polinux/stress-ng
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          while true; do
+            stress-ng --cpu 1 --cpu-load 40 --timeout 1800s
+            stress-ng --cpu 1 --cpu-load 10 --timeout 1800s
+          done
+        resources:
+          requests:
+            cpu: 500m
+            memory: 128Mi
+          limits:
+            cpu: "1"
+            memory: 256Mi

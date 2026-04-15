@@ -13,6 +13,7 @@ import { api, type MetricsDataPoint } from '../api'
 
 const DEPLOYMENTS = [
   { namespace: 'workloads', deployment: 'stress-master' },
+  { namespace: 'workloads', deployment: 'stress-cyclic' },
 ]
 
 function fmt(ts: string) {
