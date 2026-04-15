@@ -655,8 +655,8 @@ func (e *Engine) generateContainerRecommendationWithOOM(
 
 	// Enforce absolute minimums regardless of config — prevents unsafe recommendations
 	// when pods are idle (e.g., stress-ng finishes and usage drops to 0)
-	const minCPUMillicores = int64(10)           // 10m
-	const minMemoryBytes = int64(32 * 1024 * 1024) // 32Mi
+	const minCPUMillicores = int64(10)
+	const minMemoryBytes = int64(32 * 1024 * 1024)
 	if recommendedCPU < minCPUMillicores {
 		recommendedCPU = minCPUMillicores
 	}
