@@ -29,6 +29,7 @@ export function PodsPage() {
   const [pods, setPods] = useState<PodInfo[]>([])
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [selectedNamespace, setSelectedNamespace] = useState<string>('all')
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const load = () =>
@@ -42,12 +43,34 @@ export function PodsPage() {
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
   }, [])
 
+  const namespaces = ['all', ...Array.from(new Set(pods.map(p => p.namespace))).sort()]
+  const visiblePods = selectedNamespace === 'all' ? pods : pods.filter(p => p.namespace === selectedNamespace)
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <h2 style={{ margin: 0 }}>Pods</h2>
-        <div style={{ fontSize: 12, color: '#64748b' }}>
-          {lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()} · auto-refresh 10s` : 'Loading…'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ fontSize: 12, color: '#64748b' }}>
+            {lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()} · auto-refresh 10s` : 'Loading…'}
+          </div>
+          <select
+            value={selectedNamespace}
+            onChange={e => setSelectedNamespace(e.target.value)}
+            style={{
+              background: '#161b22',
+              color: '#e2e8f0',
+              border: '1px solid #30363d',
+              borderRadius: 6,
+              padding: '4px 10px',
+              fontSize: 13,
+              cursor: 'pointer',
+            }}
+          >
+            {namespaces.map(ns => (
+              <option key={ns} value={ns}>{ns === 'all' ? 'All namespaces' : ns}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -71,9 +94,9 @@ export function PodsPage() {
             </tr>
           </thead>
           <tbody>
-            {pods.length === 0 && !error ? (
+            {visiblePods.length === 0 && !error ? (
               <tr><td colSpan={7} style={{ color: '#64748b', textAlign: 'center', padding: 32 }}>No pods found</td></tr>
-            ) : pods.map(pod => (
+            ) : visiblePods.map(pod => (
               <tr key={`${pod.namespace}/${pod.name}`}>
                 <td style={{ fontFamily: 'monospace', fontSize: 13 }}>{pod.name}</td>
                 <td style={{ color: '#94a3b8' }}>{pod.namespace}</td>
