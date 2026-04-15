@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { api } from '../api'
 
-type Page = 'pods' | 'forecasts' | 'scaling-history' | 'dry-run' | 'manual-scale'
+type Page = 'pods' | 'forecasts' | 'scaling-history' | 'dry-run' | 'manual-scale' | 'resource-chart'
 
 interface Props {
   page: Page
@@ -15,6 +15,7 @@ const NAV_ITEMS: { id: Page; label: string; icon: string }[] = [
   { id: 'scaling-history',label: 'Scaling History', icon: '≡' },
   { id: 'dry-run',        label: 'Dry-Run Queue',   icon: '⏸' },
   { id: 'manual-scale',   label: 'Manual Scale',    icon: '↑' },
+  { id: 'resource-chart', label: 'Resource Usage',  icon: '◎' },
 ]
 
 export function Layout({ page, onNavigate, children }: Props) {

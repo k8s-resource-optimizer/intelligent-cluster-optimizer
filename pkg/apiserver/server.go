@@ -75,6 +75,7 @@ func NewServer(cfg Config) *Server {
 	mux.HandleFunc("/api/dry-run/pending", s.handleDryRunPending)
 	mux.HandleFunc("/api/dry-run/approve", s.handleDryRunApprove)
 	mux.HandleFunc("/api/dry-run/reject", s.handleDryRunReject)
+	mux.HandleFunc("/api/metrics-history", s.handleMetricsHistory)
 
 	s.httpServer = &http.Server{
 		Addr:         s.addr,
@@ -528,4 +529,68 @@ func (s *Server) handleDryRunReject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, d)
+}
+
+// ── /api/metrics-history ──────────────────────────────────────────────────────
+
+// MetricsDataPoint is a single time-series point for the resource chart.
+type MetricsDataPoint struct {
+	Timestamp  time.Time `json:"timestamp"`
+	UsageCPU   int64     `json:"usage_cpu"`
+	RequestCPU int64     `json:"request_cpu"`
+}
+
+func (s *Server) handleMetricsHistory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "GET only")
+		return
+	}
+
+	namespace := r.URL.Query().Get("namespace")
+	deployment := r.URL.Query().Get("deployment")
+	if namespace == "" || deployment == "" {
+		writeError(w, http.StatusBadRequest, "namespace and deployment query params required")
+		return
+	}
+
+	metrics := s.metricsStorage.GetMetricsByWorkload(namespace, deployment, 2*time.Hour)
+
+	type bucket struct {
+		usageSum   int64
+		requestSum int64
+		count      int64
+	}
+	buckets := make(map[time.Time]*bucket)
+
+	for _, pm := range metrics {
+		t := pm.Timestamp.Truncate(30 * time.Second)
+		if _, ok := buckets[t]; !ok {
+			buckets[t] = &bucket{}
+		}
+		for _, cm := range pm.Containers {
+			buckets[t].usageSum += cm.UsageCPU
+			buckets[t].requestSum += cm.RequestCPU
+			buckets[t].count++
+		}
+	}
+
+	points := make([]MetricsDataPoint, 0, len(buckets))
+	for t, b := range buckets {
+		if b.count == 0 {
+			continue
+		}
+		points = append(points, MetricsDataPoint{
+			Timestamp:  t,
+			UsageCPU:   b.usageSum / b.count,
+			RequestCPU: b.requestSum / b.count,
+		})
+	}
+
+	for i := 1; i < len(points); i++ {
+		for j := i; j > 0 && points[j].Timestamp.Before(points[j-1].Timestamp); j-- {
+			points[j], points[j-1] = points[j-1], points[j]
+		}
+	}
+
+	writeJSON(w, http.StatusOK, points)
 }

@@ -110,9 +110,17 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>
 }
 
+export interface MetricsDataPoint {
+  timestamp: string
+  usage_cpu: number
+  request_cpu: number
+}
+
 export const api = {
   health: () => fetch('/health').then(r => r.ok),
   pods: () => get<PodInfo[]>('/api/pods'),
+  metricsHistory: (namespace: string, deployment: string) =>
+    get<MetricsDataPoint[]>(`/api/metrics-history?namespace=${namespace}&deployment=${deployment}`),
   forecasts: () => get<ForecastEntry[]>('/api/forecasts'),
   scalingHistory: () => get<ScalingRecord[]>('/api/scaling-history'),
   optimizerConfigs: () => get<OptimizerConfigSummary[]>('/api/optimizer-configs'),
