@@ -40,11 +40,11 @@ export function Layout({ page, onNavigate, children }: Props) {
         padding: '20px 0',
       }}>
         <div style={{ padding: '0 20px 24px', borderBottom: '1px solid #1e2535' }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#7c3aed', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            Cluster
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            Intelligent
           </div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#f1f5f9', marginTop: 4 }}>
-            Optimizer
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9', marginTop: 2, lineHeight: 1.3 }}>
+            Cluster Optimizer
           </div>
         </div>
 
