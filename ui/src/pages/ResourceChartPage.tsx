@@ -14,6 +14,7 @@ import { api, type MetricsDataPoint, type ScalingRecord } from '../api'
 const DEPLOYMENTS = [
   { namespace: 'workloads', deployment: 'stress-master' },
   { namespace: 'workloads', deployment: 'stress-cyclic' },
+  { namespace: 'workloads', deployment: 'app-cpu-intensive' },
 ]
 
 const WINDOW_MS = 2 * 60 * 60 * 1000 // 2 hours
