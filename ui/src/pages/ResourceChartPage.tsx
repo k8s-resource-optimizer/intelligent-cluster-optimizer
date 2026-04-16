@@ -116,7 +116,7 @@ export function ResourceChartPage() {
               <Line
                 type="monotone"
                 dataKey="Actual Usage (m)"
-                stroke="#f97316"
+                stroke="#fef08a"
                 strokeWidth={2}
                 dot={false}
                 activeDot={{ r: 4 }}
@@ -136,7 +136,7 @@ export function ResourceChartPage() {
       )}
 
       <div style={{ marginTop: 16, display: 'flex', gap: 24, fontSize: 13, color: '#64748b' }}>
-        <span><span style={{ color: '#f97316' }}>—</span> Actual CPU usage collected every 30s</span>
+        <span><span style={{ color: '#fef08a' }}>—</span> Actual CPU usage collected every 30s</span>
         <span><span style={{ color: '#7c3aed' }}>- -</span> CPU request set by optimizer (step = applied change)</span>
       </div>
     </div>
