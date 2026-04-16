@@ -16,8 +16,17 @@ const DEPLOYMENTS = [
   { namespace: 'workloads', deployment: 'stress-cyclic' },
 ]
 
-function fmt(ts: string) {
+const WINDOW_MS = 2 * 60 * 60 * 1000 // 2 hours
+
+function fmtTime(ts: string) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+function fmtDateTime(d: Date) {
+  return d.toLocaleString([], {
+    month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
 }
 
 function fmtMem(bytes: number): string {
@@ -86,6 +95,8 @@ export function ResourceChartPage() {
   const [history, setHistory] = useState<ScalingRecord[]>([])
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  // windowEnd: end of visible 2h window (null = live/latest)
+  const [windowEnd, setWindowEnd] = useState<number | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const load = (ns: string, dep: string) =>
@@ -100,10 +111,61 @@ export function ResourceChartPage() {
     }).catch(e => setError(String(e)))
 
   useEffect(() => {
+    setWindowEnd(null) // reset to live when switching deployment
     load(selected.namespace, selected.deployment)
     timerRef.current = setInterval(() => load(selected.namespace, selected.deployment), 30_000)
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
   }, [selected])
+
+  // Sorted points by timestamp
+  const sorted = [...points].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  )
+
+  // Determine window boundaries
+  const dataStart = sorted.length > 0 ? new Date(sorted[0].timestamp).getTime() : 0
+  const dataEnd = sorted.length > 0 ? new Date(sorted[sorted.length - 1].timestamp).getTime() : 0
+
+  const effectiveEnd = windowEnd ?? dataEnd
+  const effectiveStart = effectiveEnd - WINDOW_MS
+  const isLive = windowEnd === null || windowEnd >= dataEnd - 30_000
+
+  // Filter points to current window
+  const windowed = sorted.filter(p => {
+    const t = new Date(p.timestamp).getTime()
+    return t >= effectiveStart && t <= effectiveEnd
+  })
+
+  const cpuData = windowed.map(p => ({
+    time: fmtTime(p.timestamp),
+    'Actual (m)': p.usage_cpu,
+    'Request (m)': p.request_cpu,
+  }))
+
+  const memData = windowed.map(p => ({
+    time: fmtTime(p.timestamp),
+    'Actual': p.usage_memory > 0 ? p.usage_memory : undefined,
+    'Request': p.request_memory > 0 ? p.request_memory : undefined,
+  }))
+
+  const canGoBack = effectiveStart > dataStart
+  const canGoForward = !isLive
+
+  function goBack() {
+    setWindowEnd(prev => {
+      const end = prev ?? dataEnd
+      return Math.max(dataStart + WINDOW_MS, end - WINDOW_MS)
+    })
+  }
+
+  function goForward() {
+    setWindowEnd(prev => {
+      const end = prev ?? dataEnd
+      const next = end + WINDOW_MS
+      if (next >= dataEnd) return null // snap to live
+      return next
+    })
+  }
 
   // Cost savings: last 24h, filtered to selected deployment
   const cutoff = Date.now() - 24 * 60 * 60 * 1000
@@ -117,17 +179,15 @@ export function ResourceChartPage() {
     )
     .reduce((sum, r) => sum + (r.savings_per_month ?? 0), 0)
 
-  const cpuData = points.map(p => ({
-    time: fmt(p.timestamp),
-    'Actual (m)': p.usage_cpu,
-    'Request (m)': p.request_cpu,
-  }))
-
-  const memData = points.map(p => ({
-    time: fmt(p.timestamp),
-    'Actual': p.usage_memory > 0 ? p.usage_memory : undefined,
-    'Request': p.request_memory > 0 ? p.request_memory : undefined,
-  }))
+  const btnStyle = (enabled: boolean): React.CSSProperties => ({
+    background: enabled ? '#161b22' : '#0d1117',
+    color: enabled ? '#e2e8f0' : '#334155',
+    border: '1px solid #1e2535',
+    borderRadius: 6,
+    padding: '4px 12px',
+    fontSize: 13,
+    cursor: enabled ? 'pointer' : 'default',
+  })
 
   return (
     <div>
@@ -197,6 +257,35 @@ export function ResourceChartPage() {
           </div>
         )}
       </div>
+
+      {/* Time window navigation */}
+      {sorted.length > 0 && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          marginBottom: 16,
+          padding: '8px 14px',
+          background: '#0d1117',
+          border: '1px solid #1e2535',
+          borderRadius: 8,
+        }}>
+          <button style={btnStyle(canGoBack)} onClick={canGoBack ? goBack : undefined}>← 2h</button>
+          <div style={{ flex: 1, textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>
+            {fmtDateTime(new Date(effectiveStart))} — {fmtDateTime(new Date(effectiveEnd))}
+            {isLive && <span style={{ color: '#4ade80', marginLeft: 8, fontWeight: 600 }}>● LIVE</span>}
+          </div>
+          <button style={btnStyle(canGoForward)} onClick={canGoForward ? goForward : undefined}>2h →</button>
+          {!isLive && (
+            <button
+              style={{ ...btnStyle(true), color: '#4ade80', borderColor: '#166534' }}
+              onClick={() => setWindowEnd(null)}
+            >
+              Live
+            </button>
+          )}
+        </div>
+      )}
 
       {points.length === 0 && !error ? (
         <div style={{ color: '#64748b', textAlign: 'center', padding: 48 }}>
