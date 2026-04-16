@@ -594,6 +594,11 @@ func (e *Engine) generateContainerRecommendationWithOOM(
 		return nil
 	}
 
+	// Sort samples by timestamp so the last element is always the most recent
+	sort.Slice(samples, func(i, j int) bool {
+		return samples[i].timestamp.Before(samples[j].timestamp)
+	})
+
 	// Extract CPU and memory values along with timestamps
 	cpuValues := make([]int64, len(samples))
 	memoryValues := make([]int64, len(samples))
