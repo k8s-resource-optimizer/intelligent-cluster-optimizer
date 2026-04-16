@@ -114,6 +114,8 @@ export interface MetricsDataPoint {
   timestamp: string
   usage_cpu: number
   request_cpu: number
+  usage_memory: number
+  request_memory: number
 }
 
 export const api = {

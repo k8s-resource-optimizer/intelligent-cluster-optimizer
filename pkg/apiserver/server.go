@@ -535,9 +535,11 @@ func (s *Server) handleDryRunReject(w http.ResponseWriter, r *http.Request) {
 
 // MetricsDataPoint is a single time-series point for the resource chart.
 type MetricsDataPoint struct {
-	Timestamp  time.Time `json:"timestamp"`
-	UsageCPU   int64     `json:"usage_cpu"`
-	RequestCPU int64     `json:"request_cpu"`
+	Timestamp     time.Time `json:"timestamp"`
+	UsageCPU      int64     `json:"usage_cpu"`
+	RequestCPU    int64     `json:"request_cpu"`
+	UsageMemory   int64     `json:"usage_memory"`
+	RequestMemory int64     `json:"request_memory"`
 }
 
 func (s *Server) handleMetricsHistory(w http.ResponseWriter, r *http.Request) {
@@ -556,9 +558,11 @@ func (s *Server) handleMetricsHistory(w http.ResponseWriter, r *http.Request) {
 	metrics := s.metricsStorage.GetMetricsByWorkload(namespace, deployment, 2*time.Hour)
 
 	type bucket struct {
-		usageSum   int64
-		requestSum int64
-		count      int64
+		cpuUsageSum   int64
+		cpuRequestSum int64
+		memUsageSum   int64
+		memRequestSum int64
+		count         int64
 	}
 	buckets := make(map[time.Time]*bucket)
 
@@ -568,8 +572,10 @@ func (s *Server) handleMetricsHistory(w http.ResponseWriter, r *http.Request) {
 			buckets[t] = &bucket{}
 		}
 		for _, cm := range pm.Containers {
-			buckets[t].usageSum += cm.UsageCPU
-			buckets[t].requestSum += cm.RequestCPU
+			buckets[t].cpuUsageSum += cm.UsageCPU
+			buckets[t].cpuRequestSum += cm.RequestCPU
+			buckets[t].memUsageSum += cm.UsageMemory
+			buckets[t].memRequestSum += cm.RequestMemory
 			buckets[t].count++
 		}
 	}
@@ -580,9 +586,11 @@ func (s *Server) handleMetricsHistory(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		points = append(points, MetricsDataPoint{
-			Timestamp:  t,
-			UsageCPU:   b.usageSum / b.count,
-			RequestCPU: b.requestSum / b.count,
+			Timestamp:     t,
+			UsageCPU:      b.cpuUsageSum / b.count,
+			RequestCPU:    b.cpuRequestSum / b.count,
+			UsageMemory:   b.memUsageSum / b.count,
+			RequestMemory: b.memRequestSum / b.count,
 		})
 	}
 
