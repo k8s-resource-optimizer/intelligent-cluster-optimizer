@@ -200,7 +200,7 @@ export function ResourceChartPage() {
 
       {points.length === 0 && !error ? (
         <div style={{ color: '#64748b', textAlign: 'center', padding: 48 }}>
-          No metrics data yet (last 2 hours)
+          No metrics data yet
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

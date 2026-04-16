@@ -555,7 +555,7 @@ func (s *Server) handleMetricsHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	metrics := s.metricsStorage.GetMetricsByWorkload(namespace, deployment, 2*time.Hour)
+	metrics := s.metricsStorage.GetMetricsByWorkload(namespace, deployment, 30*24*time.Hour)
 
 	type bucket struct {
 		cpuUsageSum   int64
