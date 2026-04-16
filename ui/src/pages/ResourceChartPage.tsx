@@ -125,8 +125,8 @@ export function ResourceChartPage() {
 
   const memData = points.map(p => ({
     time: fmt(p.timestamp),
-    'Actual': p.usage_memory,
-    'Request': p.request_memory,
+    'Actual': p.usage_memory > 0 ? p.usage_memory : undefined,
+    'Request': p.request_memory > 0 ? p.request_memory : undefined,
   }))
 
   return (
