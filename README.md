@@ -511,62 +511,12 @@ go test ./pkg/gitops/... -v
 
 ---
 
-## Current Sprint (2-Day Feature Addition)
-
-**Status:** 🚧 In Progress
-**Duration:** 2 days
-**Focus:** Add production features before testing hardening
-
-### Azra (Analytics & Reporting)
-- [ ] Cost Optimization Report Generator (JSON/CSV/HTML export)
-- [ ] What-If Scenario Simulator (risk-free testing)
-- [ ] Historical Trend Analysis (capacity planning, growth predictions)
-- [ ] Recommendation Diff Tool (visual comparison, change impact)
-
-### Erva (Infrastructure & Integration)
-- [ ] Webhook Notification System (Slack/Email/HTTP webhooks)
-- [ ] Production Helm Chart (with prod/staging/dev profiles)
-- [ ] Enhanced Admission Webhook (config validation)
-- [ ] Backup & Restore System (persistent metrics storage)
-
-**After Sprint:** Focus shifts to testing completion (stress tests, missing unit tests, race condition fixes)
-
----
-
-## Pending Work
-
-### High Priority
-- [ ] **Fix resource leaks** - Stop GC goroutine on shutdown
-- [ ] **Fix race conditions** - Sync map access in collector
-- [ ] **Add health probes** - `/healthz` and `/readyz` endpoints
-- [ ] **Graceful shutdown** - Clean goroutine cleanup
-- [ ] **Complete test coverage** - Test untested packages (cost, rollback, scaler, storage)
-- [ ] **Stress tests** - 10k workloads, 1M samples
-
-### Medium Priority
-- [ ] **Webhook notifications** - Slack, PagerDuty, email integration
-- [ ] **Helm chart** - Production deployment packaging
-- [ ] **Backup/restore** - Persistent storage for metrics
-- [ ] **Structured logging** - JSON logs with correlation IDs
-- [ ] **Performance optimization** - Fix O(n²) sort, optimize cleanup
-
-### Future Enhancements
-- [ ] **Web dashboard** - UI for visualization
-- [ ] **AI-based prediction** - LSTM, Transformer, RL models
-- [ ] **Multi-cluster support** - Federation across clusters
-- [ ] **Leader election** - High availability
-- [ ] **Custom metrics** - User-defined optimization targets
-
----
-
 ## Known Limitations
 
 ### Current Constraints
-1. **Single Instance Only** - No leader election, must run single replica
-2. **In-Memory Storage** - All metrics lost on restart, no persistence
-3. **No Horizontal Scaling** - Controller not designed for multiple replicas
-4. **Limited Test Coverage** - 49% of packages have tests, infrastructure gaps remain
-5. **Resource Leaks** - Goroutines not cleaned up on shutdown
+1. **In-Memory Storage per instance** - Metrics are not shared across replicas; leader election ensures single-writer consistency
+2. **`timepattern` not yet integrated** - Business-hours and batch-pattern detection is implemented (`pkg/timepattern`) but not yet wired into the reconcile loop
+3. **`optctl report` / `optctl simulate`** - CLI stubs exist; full offline report generation requires a running controller to supply recommendation data
 
 ### Performance Considerations
 - **Recommendation Generation:** ~50ms for typical workload (1000 samples)
@@ -584,7 +534,7 @@ go test ./pkg/gitops/... -v
 ### Compatibility
 - ✅ **Kubernetes:** 1.20+ (tested on 1.24-1.28)
 - ✅ **Metrics Server:** Required for data collection
-- ✅ **Go:** 1.21+ for building from source
+- ✅ **Go:** 1.26.2+ for building from source
 - ⚠️ **HPA:** Compatible but manual coordination needed
 - ⚠️ **VPA:** May conflict, choose one or the other
 
@@ -592,7 +542,7 @@ go test ./pkg/gitops/... -v
 
 ## Technologies
 
-- **Language**: Go 1.21+
+- **Language**: Go 1.26.2+
 - **Framework**: Kubernetes controller-runtime
 - **APIs**: Kubernetes metrics API, custom CRDs
 - **Policy Engine**: expr-lang/expr for expression evaluation
