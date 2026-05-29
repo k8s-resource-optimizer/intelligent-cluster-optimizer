@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -43,7 +46,47 @@ var (
 	retryPeriod   time.Duration
 	mlServiceURL  string
 	apiAddr       string
+	healthAddr    string
 )
+
+// ready is set to 1 once the controller has successfully started.
+var ready atomic.Int32
+
+// startHealthServer starts a minimal HTTP server for Kubernetes liveness and
+// readiness probes. It blocks until ctx is cancelled.
+func startHealthServer(ctx context.Context, addr string) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, "ok")
+	})
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, _ *http.Request) {
+		if ready.Load() == 1 {
+			fmt.Fprint(w, "ok")
+			return
+		}
+		http.Error(w, "not ready", http.StatusServiceUnavailable)
+	})
+
+	srv := &http.Server{
+		Addr:         addr,
+		Handler:      mux,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+	}
+
+	go func() {
+		klog.Infof("Health server listening on %s", addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			klog.Errorf("Health server error: %v", err)
+		}
+	}()
+
+	<-ctx.Done()
+	shutCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_ = srv.Shutdown(shutCtx)
+	klog.Info("Health server stopped")
+}
 
 func main() {
 	klog.InitFlags(nil)
@@ -61,6 +104,8 @@ func main() {
 			"Falls back to Holt-Winters when empty or unreachable.")
 	flag.StringVar(&apiAddr, "api-addr", ":8090",
 		"Address for the GUI REST API server (e.g. :8090). Set to empty string to disable.")
+	flag.StringVar(&healthAddr, "health-addr", ":8081",
+		"Address for the Kubernetes health probe server (/healthz and /readyz).")
 	flag.Parse()
 
 	if err := v1alpha1.AddToScheme(scheme.Scheme); err != nil {
@@ -167,6 +212,9 @@ func main() {
 	}
 	// ─────────────────────────────────────────────────────────────────────────
 
+	// Start the Kubernetes health probe server (/healthz, /readyz).
+	go startHealthServer(ctx, healthAddr)
+
 	// Start the GUI API server now that ctx is available.
 	if apiAddr != "" {
 		apiSrv := apiserver.NewServer(apiserver.Config{
@@ -184,6 +232,9 @@ func main() {
 		go apiSrv.Start(ctx)
 		klog.Infof("GUI API server started on %s", apiAddr)
 	}
+
+	// Signal that the controller is ready to serve traffic.
+	ready.Store(1)
 
 	if !leaderElect {
 		klog.Info("Running without leader election")
