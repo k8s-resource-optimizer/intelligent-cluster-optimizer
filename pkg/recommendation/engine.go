@@ -334,34 +334,16 @@ func (e *Engine) GenerateRecommendationsWithOOM(
 	return recommendations, nil
 }
 
-// sortRecommendationsByPriority sorts recommendations with OOM-affected workloads first
+// sortRecommendationsByPriority sorts recommendations with OOM-affected workloads first,
+// then by descending OOM count among workloads that share OOM status.
 func sortRecommendationsByPriority(recs []WorkloadRecommendation) {
-	// Simple bubble sort for now - could use sort.Slice for larger lists
-	for i := 0; i < len(recs); i++ {
-		for j := i + 1; j < len(recs); j++ {
-			if shouldSwap(recs[i], recs[j]) {
-				recs[i], recs[j] = recs[j], recs[i]
-			}
+	sort.Slice(recs, func(i, j int) bool {
+		a, b := recs[i], recs[j]
+		if a.HasOOMHistory != b.HasOOMHistory {
+			return a.HasOOMHistory // OOM workloads come first
 		}
-	}
-}
-
-// shouldSwap returns true if b should come before a (b has higher priority)
-func shouldSwap(a, b WorkloadRecommendation) bool {
-	// OOM workloads come first
-	if b.HasOOMHistory && !a.HasOOMHistory {
-		return true
-	}
-	if a.HasOOMHistory && !b.HasOOMHistory {
-		return false
-	}
-
-	// Both have OOM or neither has OOM - sort by OOM count
-	if a.HasOOMHistory && b.HasOOMHistory {
-		return b.TotalOOMCount > a.TotalOOMCount
-	}
-
-	return false
+		return a.TotalOOMCount > b.TotalOOMCount
+	})
 }
 
 // applyStrategy adjusts percentile and safety margin based on optimization strategy
