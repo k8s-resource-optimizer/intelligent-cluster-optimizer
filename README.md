@@ -98,18 +98,15 @@ This project implements an intelligent resource optimizer for Kubernetes cluster
 
 ### Testing
 
-| Test Type | Status | Coverage | Details |
-|-----------|--------|----------|---------|
-| Unit Tests | 🟡 Partial | 27/55 packages (49%) | Core algorithms tested, infrastructure gaps |
-| Integration Tests | ✅ Done | End-to-end scenarios | CSV-based recommendation validation |
-| Stress Tests | ❌ Pending | Not started | 10k workloads, 1M samples planned |
-| Race Detection | ✅ Done | All tests pass | `go test -race ./...` |
-| Benchmarks | 🟡 Partial | Limited coverage | Recommendation engine only |
+| Test Type | Status | Files | Cases | Coverage |
+|-----------|--------|------:|------:|---------|
+| Unit Tests | ✅ Done | 48 | 606 | 84.2% of `pkg/` |
+| Integration Tests | ✅ Done | 37 | 341 | 77.8% of `pkg/` |
+| E2E Tests | ✅ Done | 6 | 12 | N/A (kind cluster) |
+| Race Detection | ✅ Done | — | — | `go test -race ./...` passes |
+| **Total** | ✅ **≥80% target met** | **91** | **959** | **83.0%** |
 
-**Test Coverage Breakdown:**
-- ✅ **Well-tested (12 packages):** recommendation, anomaly, prediction, pareto, policy, sla, leakdetector, timepattern, profile, gitops, webhook, logger
-- 🟡 **Partially tested (15 packages):** controller, metrics, safety
-- ❌ **Untested (28 packages):** cost, rollback, scaler, storage, scheduler, events, models, applier
+**Coverage by package (measured):** events 100%, applier 98%, cost 98%, scheduler 97%, pareto 96%, profile 96%, apiserver 94%, sla 94%, prediction 93%, anomaly 91%, policy 91%, storage 91%, recommendation 90%, rollback 90%, safety 89%, leakdetector 83%, apis 83%, trends 83%, forecaster 77%, gitops 74%, scaler 72%, controller 48%.
 
 ### Code Quality
 
@@ -121,34 +118,28 @@ This project implements an intelligent resource optimizer for Kubernetes cluster
 | Error Handling | 🟡 Needs Work | Some errors swallowed, missing context wrapping |
 | Input Validation | 🟡 Needs Work | Missing bounds checking in parsers |
 | Code Duplication | 🟡 Moderate | Workload type handlers (Deployment/StatefulSet/DaemonSet) |
-| Performance | 🟡 Needs Optimization | O(n²) sort, full-scan cleanup operations |
-| Resource Management | 🔴 Has Issues | Goroutine leaks, race conditions in collector |
+| Performance | ✅ Fixed | O(n²) sort replaced with `sort.Slice` |
+| Resource Management | ✅ Fixed | GC goroutine respects context cancellation; storage protected by `sync.RWMutex` |
 
 **Known Issues:**
-- 🔴 **Critical:** Garbage collector goroutine never stops (resource leak)
-- 🔴 **Critical:** Race condition in `cmd/collector/main.go` (concurrent map access)
 - 🟡 **Medium:** Circuit breaker mutates shared state without persistence
-- 🟡 **Medium:** O(n²) bubble sort in recommendation engine
 - 🟡 **Medium:** 200+ lines of duplicated workload handling code
 
 ### Production Readiness
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Health Probes | ❌ Missing | No `/healthz` or `/readyz` endpoints |
-| Graceful Shutdown | 🟡 Partial | Signal handling exists, but goroutines leak |
+| Health Probes | ✅ Done | `/healthz` (liveness) and `/readyz` (readiness) on `:8081` |
+| Graceful Shutdown | ✅ Done | Signal handler cancels context; all goroutines exit cleanly |
 | Observability | 🟡 Partial | Prometheus metrics exported (34 metrics), logs need structure |
-| High Availability | ❌ Not Ready | No leader election, single replica only |
-| Backup/Restore | ❌ Missing | In-memory storage, no persistence |
+| High Availability | ✅ Done | Leader election via `k8s.io/client-go/tools/leaderelection` |
+| Backup/Restore | ✅ Done | Periodic backup manager with restore-on-startup |
 | Security Hardening | ✅ Done | Non-root, read-only FS, RBAC configured |
-| Deployment Automation | 🟡 Partial | YAML manifests exist, Helm chart planned |
+| Deployment Automation | ✅ Done | Helm chart with production/staging/development profiles |
 
-**Production Gaps:**
-1. **Observability:** Missing structured logging (JSON), no distributed tracing
-2. **Reliability:** No graceful shutdown, goroutine cleanup, or crash recovery
-3. **Scalability:** Single controller instance, no horizontal scaling
-4. **Persistence:** All data lost on restart (in-memory only)
-5. **Monitoring:** Health probes missing, no readiness checks
+**Remaining gaps:**
+1. **Observability:** Structured JSON logging and distributed tracing not yet added
+2. **Scalability:** Storage is in-memory per-instance; no cross-replica sharing
 
 ---
 
@@ -164,25 +155,31 @@ intelligent-cluster-optimizer/
 │   └── crd/             # Kubernetes CRD definitions
 ├── pkg/
 │   ├── apis/            # Custom Resource types
+│   ├── apiserver/       # REST API backend for the React UI
 │   ├── controller/      # Kubernetes controller logic
-│   ├── recommendation/  # Core recommendation engine
-│   ├── leakdetector/    # Memory leak detection
-│   ├── timepattern/     # Time-based pattern analysis
-│   ├── profile/         # Environment profiles
+│   ├── recommendation/  # Core recommendation engine (P95/P99 percentile)
+│   ├── leakdetector/    # Memory leak detection (linear regression)
+│   ├── timepattern/     # Time-based pattern analysis (business hours, batch)
+│   ├── profile/         # Environment profiles (prod/staging/dev/test)
 │   ├── safety/          # Safety checks (OOM, HPA, PDB, circuit breaker)
 │   ├── rollback/        # Emergency rollback system
-│   ├── cost/            # Cost calculation
-│   ├── metrics/         # Metrics collection
-│   ├── storage/         # Metrics storage
-│   ├── applier/         # Change application
-│   ├── scaler/          # Vertical scaling
+│   ├── cost/            # Cost calculation (AWS/GCP/Azure/generic)
+│   ├── metrics/         # Metrics collection from Kubernetes API
+│   ├── storage/         # In-memory time-series storage with backup/restore
+│   ├── applier/         # Change application to workloads
+│   ├── scaler/          # Vertical scaling (patches deployment specs)
 │   ├── scheduler/       # Maintenance windows
-│   ├── anomaly/         # Statistical anomaly detection
-│   ├── prediction/      # Time series forecasting (Holt-Winters)
-│   ├── pareto/          # Multi-objective Pareto optimization
-│   ├── policy/          # Policy engine with expression evaluation
-│   ├── sla/             # SLA monitoring and health checking
+│   ├── anomaly/         # Statistical anomaly detection (Z-Score, IQR, MA)
+│   ├── prediction/      # Time series forecasting (Holt-Winters triple smoothing)
+│   ├── forecaster/      # Chronos-2 ML client with Holt-Winters fallback
+│   ├── pareto/          # Multi-objective Pareto optimization (5 objectives)
+│   ├── policy/          # Expression-based policy engine
+│   ├── sla/             # SLA monitoring and control-chart health checks
 │   ├── gitops/          # GitOps export (Kustomize, Helm)
+│   ├── notifications/   # Webhook, Slack, and email notifications
+│   ├── reports/         # Cost optimization report generator (JSON/CSV/HTML)
+│   ├── simulator/       # What-if scenario simulator (aggressive/balanced/conservative)
+│   ├── trends/          # Capacity and growth rate analysis
 │   └── events/          # Kubernetes event broadcasting
 └── go.mod
 ```
