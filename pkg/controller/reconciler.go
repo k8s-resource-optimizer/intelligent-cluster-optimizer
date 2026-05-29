@@ -187,7 +187,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, config *optimizerv1alpha1.Op
 		result.Updated = true
 		if config.Status.NextMaintenanceWindow != nil {
 			timeUntilNext := time.Until(config.Status.NextMaintenanceWindow.Time)
-			if timeUntilNext > 0 && timeUntilNext < 30*time.Minute {
+			if timeUntilNext > 0 {
 				result.RequeueAfter = timeUntilNext
 			} else {
 				result.RequeueAfter = 5 * time.Minute
