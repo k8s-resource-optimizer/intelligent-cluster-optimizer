@@ -78,11 +78,15 @@ func parseCPUMillicores(s string) int64 {
 	}
 	if strings.HasSuffix(s, "m") {
 		var v int64
-		fmt.Sscanf(s, "%dm", &v)
+		if _, err := fmt.Sscanf(s, "%dm", &v); err != nil {
+			return 0
+		}
 		return v
 	}
 	var v float64
-	fmt.Sscanf(s, "%f", &v)
+	if _, err := fmt.Sscanf(s, "%f", &v); err != nil {
+		return 0
+	}
 	return int64(v * 1000)
 }
 
@@ -106,12 +110,16 @@ func parseMemBytes(s string) int64 {
 	for _, entry := range suffixes {
 		if strings.HasSuffix(s, entry.suffix) {
 			var v int64
-			fmt.Sscanf(s, "%d"+entry.suffix, &v)
+			if _, err := fmt.Sscanf(s, "%d"+entry.suffix, &v); err != nil {
+				return 0
+			}
 			return v * entry.mult
 		}
 	}
 	var v int64
-	fmt.Sscanf(s, "%d", &v)
+	if _, err := fmt.Sscanf(s, "%d", &v); err != nil {
+		return 0
+	}
 	return v
 }
 
