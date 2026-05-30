@@ -169,7 +169,6 @@ func CalculateAcceleration(data []float64) float64 {
 	return sumSecondDeriv / float64(count)
 }
 
-
 // testExponentialFit tests if data fits exponential growth better than linear.
 // Uses R² comparison: the log-transform must fit the data significantly better
 // than a plain linear model to avoid misclassifying near-linear series.
