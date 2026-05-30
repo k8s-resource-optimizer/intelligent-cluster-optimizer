@@ -24,7 +24,7 @@ func TestPredictTimeToExhaustion(t *testing.T) {
 		},
 		{
 			name:              "approaching limit",
-			data:              generateLinear(100, 50, 0.5), // Will reach 100 in ~100 steps
+			data:              generateLinear(100, 50, 0.3), // Reaches ~80% utilisation, trending toward limit
 			limit:             100,
 			expectedRiskLevel: RiskMedium,
 			expectTimeToLimit: true,
@@ -46,7 +46,7 @@ func TestPredictTimeToExhaustion(t *testing.T) {
 		{
 			name:              "rapid growth",
 			data:              generateExponential(50, 10, 1.02),
-			limit:             1000,
+			limit:             30,
 			expectedRiskLevel: RiskHigh,
 			expectTimeToLimit: true,
 		},

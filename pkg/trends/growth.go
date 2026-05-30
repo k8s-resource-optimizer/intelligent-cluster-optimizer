@@ -13,65 +13,54 @@ func DetectGrowthPattern(data []float64, timestamps []time.Time, config *Analyze
 		return PatternStable
 	}
 
-	// Use decomposition to extract trend component
-	period := prediction.DetectSeasonalPeriod(data, 24) // Daily seasonality for hourly data
-	decomposer := prediction.NewDecomposer(period)
-	result, err := decomposer.Decompose(data)
-	if err != nil {
-		// Fallback to simple analysis
-		return detectSimplePattern(data, config)
-	}
-
-	// Get trend strength
-	trendStrength, _ := result.GetStrength()
-
-	// Calculate coefficient of variation (CV) for volatility
-	cv := coefficientOfVariation(data)
-
-	// Volatile check
-	if cv > 0.5 { // CV > 50% indicates high volatility
-		return PatternVolatile
-	}
-
-	// Extract linear trend
-	slope, _ := linearRegression(result.Trend)
-
-	// Calculate average value for percentage calculations
+	slope, intercept := linearRegression(data)
 	avgValue := mean(data)
 	if avgValue == 0 {
 		return PatternStable
 	}
 
-	// Growth rate as percentage
 	n := float64(len(data))
-	growthRate := (slope / avgValue) * 100 * n // Total growth percentage
+	growthRate := (slope / avgValue) * 100 * n
 
-	// Stable pattern check
+	// 1. Stable
 	if math.Abs(growthRate) < config.StableThreshold {
 		return PatternStable
 	}
 
-	// Decreasing pattern check
-	if growthRate < -config.StableThreshold {
+	// 2. Decreasing — only when the linear fit is strong (R²>0.7) so that volatile
+	//    data with a negative net slope is not misclassified as decreasing.
+	r2 := rSquared(data, slope, intercept)
+	if growthRate < -config.StableThreshold && r2 > 0.7 {
 		return PatternDecreasing
 	}
 
-	// Cyclical pattern check (strong seasonality, weak trend)
-	if trendStrength < 0.3 {
-		return PatternCyclical
-	}
-
-	// Test for exponential growth
-	if testExponentialFit(data, slope) {
+	// 3. Exponential — checked before volatile because exponential series have
+	//    a wide value range that inflates CV above the volatile threshold.
+	if slope > 0 && testExponentialFit(data, slope) {
 		return PatternExponential
 	}
 
-	// Test for logarithmic growth (increasing but decelerating)
+	// 4. Logarithmic — positive but decelerating growth.
 	if testLogarithmicFit(data) {
 		return PatternLogarithmic
 	}
 
-	// Default to linear
+	// 5. Volatile — high coefficient of variation with no clear deterministic pattern.
+	cv := coefficientOfVariation(data)
+	if cv > 0.5 {
+		return PatternVolatile
+	}
+
+	// 6. Cyclical — decomposition-based check for strong seasonality vs weak trend.
+	period := prediction.DetectSeasonalPeriod(data, 24)
+	decomposer := prediction.NewDecomposer(period)
+	if result, err := decomposer.Decompose(data); err == nil {
+		trendStrength, _ := result.GetStrength()
+		if trendStrength < 0.3 {
+			return PatternCyclical
+		}
+	}
+
 	return PatternLinear
 }
 
@@ -83,8 +72,15 @@ func CalculateGrowthRates(data []float64, timestamps []time.Time) GrowthRate {
 
 	// Linear regression to get trend
 	slope, _ := linearRegression(data)
-	avgValue := mean(data)
-	if avgValue == 0 {
+
+	// Use the starting value as baseline so that growth rate reflects percentage
+	// change relative to where the series began (e.g. slope=2 on a series starting
+	// at 100 gives 2%/point, matching the intuitive "2% per interval" definition).
+	baseline := data[0]
+	if baseline <= 0 {
+		baseline = mean(data)
+	}
+	if baseline == 0 {
 		return GrowthRate{}
 	}
 
@@ -97,7 +93,7 @@ func CalculateGrowthRates(data []float64, timestamps []time.Time) GrowthRate {
 	}
 
 	// Growth per data point as percentage
-	growthPerPoint := (slope / avgValue) * 100
+	growthPerPoint := (slope / baseline) * 100
 
 	// Convert to different time scales
 	daily := growthPerPoint * float64(24*time.Hour/interval)
@@ -204,13 +200,14 @@ func detectSimplePattern(data []float64, config *AnalyzerConfig) GrowthPattern {
 	return PatternLinear
 }
 
-// testExponentialFit tests if data fits exponential growth better than linear
+// testExponentialFit tests if data fits exponential growth better than linear.
+// Uses R² comparison: the log-transform must fit the data significantly better
+// than a plain linear model to avoid misclassifying near-linear series.
 func testExponentialFit(data []float64, linearSlope float64) bool {
-	if len(data) < 3 {
+	if len(data) < 3 || linearSlope <= 0 {
 		return false
 	}
 
-	// Transform data using log
 	logData := make([]float64, 0, len(data))
 	for _, v := range data {
 		if v > 0 {
@@ -218,16 +215,22 @@ func testExponentialFit(data []float64, linearSlope float64) bool {
 		}
 	}
 
-	if len(logData) < len(data)/2 {
-		return false // Too many zeros/negatives for exponential fit
+	if len(logData) < len(data)*3/4 {
+		return false
 	}
 
-	// Linear regression on log-transformed data
-	expSlope, _ := linearRegression(logData)
+	expSlope, expIntercept := linearRegression(logData)
+	if expSlope <= 0.005 {
+		return false
+	}
 
-	// If log transform shows strong positive linear trend, it's exponential
-	// Also check that original slope is positive and significant
-	return expSlope > 0.01 && linearSlope > 0
+	// The log-transform R² must be meaningfully better than the raw linear R²
+	// to confirm true exponential growth rather than near-linear growth.
+	r2Exp := rSquared(logData, expSlope, expIntercept)
+	linSlope, linIntercept := linearRegression(data)
+	r2Lin := rSquared(data, linSlope, linIntercept)
+
+	return r2Exp > 0.95 && r2Exp-r2Lin > 0.03
 }
 
 // testLogarithmicFit tests if data fits logarithmic growth pattern
@@ -316,4 +319,26 @@ func linearRegression(data []float64) (slope, intercept float64) {
 	intercept = (sumY - slope*sumX) / n
 
 	return slope, intercept
+}
+
+// rSquared computes the coefficient of determination (R²) for a linear fit
+// y = intercept + slope*i over the data slice.
+func rSquared(data []float64, slope, intercept float64) float64 {
+	avg := mean(data)
+	var ssTot, ssRes float64
+	for i, y := range data {
+		predicted := intercept + slope*float64(i)
+		diff := y - avg
+		ssTot += diff * diff
+		resid := y - predicted
+		ssRes += resid * resid
+	}
+	if ssTot == 0 {
+		return 1.0
+	}
+	r2 := 1.0 - ssRes/ssTot
+	if r2 < 0 {
+		return 0
+	}
+	return r2
 }

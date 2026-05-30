@@ -311,12 +311,14 @@ func (r *DecompositionResult) GetStrength() (trendStrength, seasonalStrength flo
 	}
 	varResTrend := variance(resTrend)
 
-	// Strength calculations
-	if varResSeasonal > 0 {
-		trendStrength = math.Max(0, 1-varResidual/varResSeasonal)
-	}
+	// Strength calculations (standard Hyndman formula):
+	// Trend strength   = 1 - Var(R) / Var(T+R)
+	// Seasonal strength = 1 - Var(R) / Var(S+R)
 	if varResTrend > 0 {
-		seasonalStrength = math.Max(0, 1-varResidual/varResTrend)
+		trendStrength = math.Max(0, 1-varResidual/varResTrend)
+	}
+	if varResSeasonal > 0 {
+		seasonalStrength = math.Max(0, 1-varResidual/varResSeasonal)
 	}
 
 	return trendStrength, seasonalStrength

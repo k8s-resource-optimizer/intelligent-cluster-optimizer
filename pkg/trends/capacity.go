@@ -123,18 +123,18 @@ func CalculateRiskScore(utilization float64, timeToLimit *time.Duration, acceler
 	utilizationScore := utilization * 0.4
 	score += utilizationScore
 
-	// Factor 2: Time to limit (30 points)
+	// Factor 2: Time to limit (35 points)
 	// Inverse relationship: sooner = higher score
 	if timeToLimit != nil {
 		days := timeToLimit.Hours() / 24
 		if days <= 0 {
-			score += 30 // Immediate
+			score += 35 // Immediate
 		} else if days <= 7 {
-			score += 30 * (1 - days/7) // 7 days = 0 points, 0 days = 30 points
+			score += 35 * (1 - days/7) // 7 days = 0 points, 0 days = 35 points
 		} else if days <= 30 {
-			score += 15 * (1 - (days-7)/23) // 30 days = 0 points, 7 days = 15 points
+			score += 17 * (1 - (days-7)/23) // 30 days = 0 points, 7 days = 17 points
 		} else if days <= 90 {
-			score += 5 * (1 - (days-30)/60) // 90 days = 0 points, 30 days = 5 points
+			score += 6 * (1 - (days-30)/60) // 90 days = 0 points, 30 days = 6 points
 		}
 	}
 
@@ -171,7 +171,7 @@ func determineRiskLevel(riskScore float64) RiskLevel {
 		return RiskHigh
 	} else if riskScore >= 40 {
 		return RiskMedium
-	} else if riskScore >= 20 {
+	} else if riskScore >= 25 {
 		return RiskLow
 	}
 	return RiskNone

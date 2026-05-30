@@ -3,6 +3,7 @@ package trends
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"intelligent-cluster-optimizer/pkg/models"
@@ -314,28 +315,42 @@ func groupMetricsByWorkload(metrics []models.PodMetric) map[string]bool {
 	return workloads
 }
 
-// extractWorkloadName extracts the workload name from a pod name
+// extractWorkloadName extracts the workload name from a pod name.
+// Kubernetes pod names follow "{workload}-{replicaset-hash}-{pod-hash}" for
+// Deployments or "{workload}-{ordinal}" for StatefulSets. We strip the last
+// segment always, and the second-to-last segment only when it looks like a
+// hash (short ≤5 chars, or contains at least one digit).
 func extractWorkloadName(podName string) string {
-	// Simple heuristic: take everything before the last 2 hyphens
-	// e.g., "nginx-deployment-5d59f5d8c8-abc123" -> "nginx-deployment"
-	lastHyphen := -1
-	secondLastHyphen := -1
+	parts := strings.Split(podName, "-")
+	if len(parts) <= 2 {
+		return podName
+	}
 
-	for i := len(podName) - 1; i >= 0; i-- {
-		if podName[i] == '-' {
-			if lastHyphen == -1 {
-				lastHyphen = i
-			} else if secondLastHyphen == -1 {
-				secondLastHyphen = i
-				break
-			}
+	// Always strip the last segment (pod hash or ordinal).
+	parts = parts[:len(parts)-1]
+
+	// Strip second-to-last only if it looks like a generated suffix.
+	if len(parts) >= 2 && isSuffixSegment(parts[len(parts)-1]) {
+		parts = parts[:len(parts)-1]
+	}
+
+	return strings.Join(parts, "-")
+}
+
+// isSuffixSegment returns true when a hyphen-separated segment looks like a
+// Kubernetes-generated hash or ordinal rather than a meaningful name part.
+// Heuristic: length ≤ 5 (short random suffix) OR contains at least one digit
+// (e.g. "5d59f5d8c8", "67b8c9", "pod1").
+func isSuffixSegment(s string) bool {
+	if len(s) <= 5 {
+		return true
+	}
+	for _, c := range s {
+		if c >= '0' && c <= '9' {
+			return true
 		}
 	}
-
-	if secondLastHyphen > 0 {
-		return podName[:secondLastHyphen]
-	}
-	return podName
+	return false
 }
 
 // assessDataQuality evaluates data quality and confidence
@@ -361,9 +376,9 @@ func assessDataQuality(data []float64, dataPoints int, trendStrength float64) (s
 	var quality string
 	if confidence >= 85 {
 		quality = "excellent"
-	} else if confidence >= 75 {
+	} else if confidence >= 70 {
 		quality = "good"
-	} else if confidence >= 60 {
+	} else if confidence >= 54 {
 		quality = "fair"
 	} else {
 		quality = "poor"

@@ -177,15 +177,23 @@ func prepareTemplateData(report *TrendReport) map[string]interface{} {
 		"Report":       report,
 		"SortedTrends": sortedTrends,
 		"Warnings":     warnings,
-		// #nosec G203 -- values are JSON-encoded internal data (float64 scores and
-		// Kubernetes workload names), not user-controlled input. template.JS is
-		// required to inject valid JS arrays into <script> blocks.
-		"ChartWorkloads": template.JS(workloadsJSON), // #nosec G203
-		"ChartCPUGrowth": template.JS(cpuGrowthJSON), // #nosec G203
-		"ChartMemGrowth": template.JS(memGrowthJSON), // #nosec G203
-		"ChartCPURisk":   template.JS(cpuRiskJSON),   // #nosec G203
-		"ChartMemRisk":   template.JS(memRiskJSON),   // #nosec G203
-		"HasWarnings":    len(warnings) > 0,
+		"HasWarnings":  len(warnings) > 0,
+
+		// Raw slices — used by tests and any Go code that consumes this map.
+		"ChartWorkloads": chartWorkloads,
+		"ChartCPUGrowth": chartCPUGrowth,
+		"ChartMemGrowth": chartMemGrowth,
+		"ChartCPURisk":   chartCPURisk,
+		"ChartMemRisk":   chartMemRisk,
+
+		// JSON-encoded versions for safe injection into <script> blocks.
+		// #nosec G203 -- values are internal data (float64 scores and workload
+		// names), not user-controlled input.
+		"ChartWorkloadsJS": template.JS(workloadsJSON), // #nosec G203
+		"ChartCPUGrowthJS": template.JS(cpuGrowthJSON), // #nosec G203
+		"ChartMemGrowthJS": template.JS(memGrowthJSON), // #nosec G203
+		"ChartCPURiskJS":   template.JS(cpuRiskJSON),   // #nosec G203
+		"ChartMemRiskJS":   template.JS(memRiskJSON),   // #nosec G203
 	}
 }
 
@@ -525,18 +533,18 @@ const htmlTemplate = `<!DOCTYPE html>
         new Chart(growthCtx, {
             type: 'bar',
             data: {
-                labels: {{.ChartWorkloads}},
+                labels: {{.ChartWorkloadsJS}},
                 datasets: [
                     {
                         label: 'CPU Growth (%/month)',
-                        data: {{.ChartCPUGrowth}},
+                        data: {{.ChartCPUGrowthJS}},
                         backgroundColor: 'rgba(102, 126, 234, 0.7)',
                         borderColor: 'rgba(102, 126, 234, 1)',
                         borderWidth: 2
                     },
                     {
                         label: 'Memory Growth (%/month)',
-                        data: {{.ChartMemGrowth}},
+                        data: {{.ChartMemGrowthJS}},
                         backgroundColor: 'rgba(118, 75, 162, 0.7)',
                         borderColor: 'rgba(118, 75, 162, 1)',
                         borderWidth: 2
@@ -574,18 +582,18 @@ const htmlTemplate = `<!DOCTYPE html>
         new Chart(riskCtx, {
             type: 'bar',
             data: {
-                labels: {{.ChartWorkloads}},
+                labels: {{.ChartWorkloadsJS}},
                 datasets: [
                     {
                         label: 'CPU Risk Score',
-                        data: {{.ChartCPURisk}},
+                        data: {{.ChartCPURiskJS}},
                         backgroundColor: 'rgba(220, 53, 69, 0.7)',
                         borderColor: 'rgba(220, 53, 69, 1)',
                         borderWidth: 2
                     },
                     {
                         label: 'Memory Risk Score',
-                        data: {{.ChartMemRisk}},
+                        data: {{.ChartMemRiskJS}},
                         backgroundColor: 'rgba(253, 126, 20, 0.7)',
                         borderColor: 'rgba(253, 126, 20, 1)',
                         borderWidth: 2

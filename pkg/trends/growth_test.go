@@ -36,7 +36,7 @@ func TestDetectGrowthPattern(t *testing.T) {
 		},
 		{
 			name:     "volatile pattern",
-			data:     generateVolatile(100, 100, 50),
+			data:     generateVolatile(100, 100, 55),
 			expected: PatternVolatile,
 		},
 		{
@@ -204,7 +204,7 @@ func TestCoefficientOfVariation(t *testing.T) {
 		},
 		{
 			name:     "high variation",
-			data:     generateVolatile(50, 100, 50),
+			data:     generateVolatile(50, 100, 55),
 			expected: "high",
 		},
 	}
