@@ -169,36 +169,6 @@ func CalculateAcceleration(data []float64) float64 {
 	return sumSecondDeriv / float64(count)
 }
 
-// detectSimplePattern is a fallback when decomposition fails
-func detectSimplePattern(data []float64, config *AnalyzerConfig) GrowthPattern {
-	if len(data) < 2 {
-		return PatternStable
-	}
-
-	slope, _ := linearRegression(data)
-	avgValue := mean(data)
-	if avgValue == 0 {
-		return PatternStable
-	}
-
-	cv := coefficientOfVariation(data)
-	if cv > 0.5 {
-		return PatternVolatile
-	}
-
-	n := float64(len(data))
-	growthRate := (slope / avgValue) * 100 * n
-
-	if math.Abs(growthRate) < config.StableThreshold {
-		return PatternStable
-	}
-
-	if growthRate < -config.StableThreshold {
-		return PatternDecreasing
-	}
-
-	return PatternLinear
-}
 
 // testExponentialFit tests if data fits exponential growth better than linear.
 // Uses R² comparison: the log-transform must fit the data significantly better
