@@ -63,10 +63,9 @@ export function ScalingHistoryPage() {
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<string>('all')
 
-  useEffect(() => {
+  const load = () =>
     api.scalingHistory()
       .then(data => {
-        // Sort newest first
         const sorted = [...data].sort(
           (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         )
@@ -74,7 +73,8 @@ export function ScalingHistoryPage() {
         setError(null)
       })
       .catch(e => setError(String(e)))
-  }, [])
+
+  useEffect(() => { load() }, [])
 
   // Unique deployment names for filter dropdown
   const deployments = useMemo(() => {
@@ -91,6 +91,10 @@ export function ScalingHistoryPage() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <h2 style={{ margin: 0 }}>Scaling History</h2>
+        <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={load} style={{ padding: '6px 14px', borderRadius: 5, border: '1px solid #1e2535', background: 'transparent', color: '#94a3b8', fontSize: 12, cursor: 'pointer' }}>
+          Refresh
+        </button>
         <select
           value={filter}
           onChange={e => setFilter(e.target.value)}
@@ -109,6 +113,7 @@ export function ScalingHistoryPage() {
             <option key={name} value={name}>{name}</option>
           ))}
         </select>
+        </div>
       </div>
 
       {error && (
