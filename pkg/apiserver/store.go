@@ -284,3 +284,13 @@ func (q *DryRunQueue) setStatus(id string, status DryRunStatus) (*DryRunDecision
 	cp := *d
 	return &cp, true
 }
+
+// RevertToPending resets a decision back to pending if the live apply failed.
+func (q *DryRunQueue) RevertToPending(id string) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if d, ok := q.decisions[id]; ok {
+		d.Status = DryRunPending
+		d.ReviewedAt = nil
+	}
+}

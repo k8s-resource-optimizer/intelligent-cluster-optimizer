@@ -127,7 +127,8 @@ export const api = {
   scalingHistory: () => get<ScalingRecord[]>('/api/scaling-history'),
   optimizerConfigs: () => get<OptimizerConfigSummary[]>('/api/optimizer-configs'),
   dryRunPending: () => get<DryRunDecision[]>('/api/dry-run/pending'),
-  approve: (id: string) => post<DryRunDecision>('/api/dry-run/approve', { id }),
+  approve: (id: string, applyCPU?: boolean, applyMemory?: boolean) =>
+    post<DryRunDecision>('/api/dry-run/approve', { id, apply_cpu: applyCPU, apply_memory: applyMemory }),
   reject: (id: string) => post<DryRunDecision>('/api/dry-run/reject', { id }),
   scale: (namespace: string, deployment_name: string, replicas: number, reason = 'Manual') =>
     post<ScalingRecord>('/api/scale', { namespace, deployment_name, replicas, reason }),

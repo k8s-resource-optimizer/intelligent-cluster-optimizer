@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { api, type DryRunDecision } from '../api'
+import { api, type DryRunDecision, type PodInfo } from '../api'
 import { toast } from '../components/Toast'
 
 function ActionButton({
@@ -38,23 +38,93 @@ function ActionButton({
   )
 }
 
+function bytesToMi(bytes: number): string {
+  return (bytes / (1024 * 1024)).toFixed(0) + 'Mi'
+}
+
+function UsageSummary({ decisions, pods, filter }: { decisions: DryRunDecision[], pods: PodInfo[], filter: string }) {
+  const deployments = filter
+    ? [filter]
+    : [...new Set(decisions.map(d => d.deployment_name))]
+  if (deployments.length === 0 || pods.length === 0) return null
+
+  const rows = deployments.map(name => {
+    const matching = pods.filter(p => p.name.startsWith(name))
+    const cpuTotal = matching.reduce((s, p) => s + p.cpu_usage_millicores, 0)
+    const memTotal = matching.reduce((s, p) => s + p.memory_usage_bytes, 0)
+    return { name, cpu: cpuTotal, mem: memTotal, found: matching.length > 0 }
+  }).filter(r => r.found)
+
+  if (rows.length === 0) return null
+
+  return (
+    <div style={{
+      background: '#0d1117',
+      border: '1px solid #1e2535',
+      borderRadius: 8,
+      padding: '12px 16px',
+      marginBottom: 16,
+      display: 'flex',
+      gap: 24,
+      flexWrap: 'wrap',
+      alignItems: 'center',
+    }}>
+      <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+        Live Usage
+      </span>
+      {rows.map(r => (
+        <div key={r.name} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <span style={{ fontFamily: 'monospace', fontSize: 13, color: '#f1f5f9', fontWeight: 600 }}>{r.name}</span>
+          <span style={{ fontSize: 13, color: '#94a3b8' }}>
+            CPU <strong style={{ color: '#60a5fa' }}>{r.cpu}m</strong>
+          </span>
+          <span style={{ fontSize: 13, color: '#94a3b8' }}>
+            Mem <strong style={{ color: '#a78bfa' }}>{bytesToMi(r.mem)}</strong>
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+type ResourceSel = { cpu: boolean; memory: boolean }
+
 export function DryRunPage() {
   const [decisions, setDecisions] = useState<DryRunDecision[]>([])
+  const [pods, setPods] = useState<PodInfo[]>([])
+  const [filter, setFilter] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState<Record<string, 'approve' | 'reject' | null>>({})
+  const [sel, setSel] = useState<Record<string, ResourceSel>>({})
 
-  const load = () =>
+  const load = () => {
     api.dryRunPending()
       .then(data => { setDecisions(data ?? []); setError(null) })
       .catch(e => setError(String(e)))
+    api.pods().then(setPods).catch(() => {})
+  }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    const t = setInterval(load, 30_000)
+    return () => clearInterval(t)
+  }, [])
+
+  const getSel = (id: string): ResourceSel => sel[id] ?? { cpu: true, memory: true }
+
+  const toggleSel = (id: string, field: 'cpu' | 'memory') => {
+    setSel(prev => {
+      const cur = prev[id] ?? { cpu: true, memory: true }
+      return { ...prev, [id]: { ...cur, [field]: !cur[field] } }
+    })
+  }
 
   const handle = async (id: string, action: 'approve' | 'reject') => {
     setLoading(prev => ({ ...prev, [id]: action }))
     try {
       if (action === 'approve') {
-        await api.approve(id)
+        const { cpu, memory } = getSel(id)
+        await api.approve(id, cpu, memory)
         toast(`Approved and applied scaling decision`, 'success')
       } else {
         await api.reject(id)
@@ -63,29 +133,58 @@ export function DryRunPage() {
       await load()
     } catch (e) {
       toast(`Failed to ${action}: ${e}`, 'error')
+      await load()
     } finally {
       setLoading(prev => ({ ...prev, [id]: null }))
     }
   }
 
+  const filtered = filter.trim()
+    ? decisions.filter(d => d.deployment_name.toLowerCase().includes(filter.toLowerCase()))
+    : decisions
+
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <h2 style={{ margin: 0 }}>Dry-Run Queue</h2>
-        <button
-          onClick={load}
-          style={{
-            padding: '6px 14px',
-            borderRadius: 5,
-            border: '1px solid #1e2535',
-            background: 'transparent',
-            color: '#94a3b8',
-            fontSize: 12,
-          }}
-        >
-          Refresh
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <select
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            style={{
+              padding: '5px 10px',
+              borderRadius: 5,
+              border: '1px solid #1e2535',
+              background: '#0d1117',
+              color: filter ? '#f1f5f9' : '#64748b',
+              fontSize: 13,
+              outline: 'none',
+              width: 180,
+              cursor: 'pointer',
+            }}
+          >
+            <option value="">All apps</option>
+            {[...new Set(decisions.map(d => d.deployment_name))].sort().map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+          <button
+            onClick={load}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 5,
+              border: '1px solid #1e2535',
+              background: 'transparent',
+              color: '#94a3b8',
+              fontSize: 12,
+            }}
+          >
+            Refresh
+          </button>
+        </div>
       </div>
+
+      <UsageSummary decisions={decisions} pods={pods} filter={filter} />
 
       {error && (
         <div style={{ color: '#fca5a5', background: '#450a0a', padding: '10px 14px', borderRadius: 6, marginBottom: 16, fontSize: 13 }}>
@@ -93,11 +192,13 @@ export function DryRunPage() {
         </div>
       )}
 
-      {decisions.length === 0 && !error ? (
-        <div style={{ color: '#64748b', textAlign: 'center', padding: 48 }}>No pending dry-run decisions</div>
+      {filtered.length === 0 && !error ? (
+        <div style={{ color: '#64748b', textAlign: 'center', padding: 48 }}>
+          {decisions.length > 0 ? 'No matches for filter' : 'No pending dry-run decisions'}
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {decisions.map(d => (
+          {filtered.map(d => (
             <div key={d.id} style={{
               background: '#0d1117',
               border: `1px solid ${d.scaling_type === 'vertical' ? '#1e3a2f' : '#1e2535'}`,
@@ -128,24 +229,40 @@ export function DryRunPage() {
                   </div>
 
                   {d.scaling_type === 'vertical' ? (
-                    <div style={{ display: 'flex', gap: 24, fontSize: 13, color: '#94a3b8', flexWrap: 'wrap' }}>
-                      {d.current_cpu && <span>
-                        CPU: <strong style={{ color: '#f1f5f9' }}>{d.current_cpu}</strong>
-                        <span style={{ color: '#475569', margin: '0 6px' }}>→</span>
-                        <strong style={{ color: '#4ade80' }}>{d.recommended_cpu}</strong>
-                      </span>}
-                      {d.current_memory && <span>
-                        Memory: <strong style={{ color: '#f1f5f9' }}>{d.current_memory}</strong>
-                        <span style={{ color: '#475569', margin: '0 6px' }}>→</span>
-                        <strong style={{ color: '#4ade80' }}>{d.recommended_memory}</strong>
-                      </span>}
-                      {d.confidence != null && <span>
-                        Confidence: <strong style={{ color: '#f1f5f9' }}>{(d.confidence * 100).toFixed(0)}%</strong>
-                      </span>}
-                      {d.savings_per_month != null && d.savings_per_month > 0 && <span style={{ color: '#4ade80' }}>
-                        Savings: <strong>${d.savings_per_month.toFixed(2)}/mo</strong>
-                      </span>}
-                      <span style={{ fontSize: 12 }}>{new Date(d.created_at).toLocaleString()}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+                        {d.current_cpu && (
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#94a3b8' }}>
+                            <input
+                              type="checkbox"
+                              checked={getSel(d.id).cpu}
+                              onChange={() => toggleSel(d.id, 'cpu')}
+                              style={{ accentColor: '#4ade80', width: 14, height: 14 }}
+                            />
+                            CPU: <strong style={{ color: getSel(d.id).cpu ? '#f1f5f9' : '#475569' }}>{d.current_cpu}</strong>
+                            <span style={{ color: '#475569' }}>→</span>
+                            <strong style={{ color: getSel(d.id).cpu ? '#4ade80' : '#475569' }}>{d.recommended_cpu}</strong>
+                          </label>
+                        )}
+                        {d.current_memory && (
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#94a3b8' }}>
+                            <input
+                              type="checkbox"
+                              checked={getSel(d.id).memory}
+                              onChange={() => toggleSel(d.id, 'memory')}
+                              style={{ accentColor: '#4ade80', width: 14, height: 14 }}
+                            />
+                            Memory: <strong style={{ color: getSel(d.id).memory ? '#f1f5f9' : '#475569' }}>{d.current_memory}</strong>
+                            <span style={{ color: '#475569' }}>→</span>
+                            <strong style={{ color: getSel(d.id).memory ? '#4ade80' : '#475569' }}>{d.recommended_memory}</strong>
+                          </label>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: 16, fontSize: 12, color: '#94a3b8' }}>
+                        {d.confidence != null && <span>Confidence: <strong style={{ color: '#f1f5f9' }}>{d.confidence.toFixed(0)}%</strong></span>}
+                        {d.savings_per_month != null && d.savings_per_month > 0 && <span style={{ color: '#4ade80' }}>Savings: <strong>${d.savings_per_month.toFixed(2)}/mo</strong></span>}
+                        <span>{new Date(d.created_at).toLocaleString()}</span>
+                      </div>
                     </div>
                   ) : (
                     <div style={{ display: 'flex', gap: 24, fontSize: 13, color: '#94a3b8' }}>

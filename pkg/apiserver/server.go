@@ -412,7 +412,9 @@ func (s *Server) handleDryRunPending(w http.ResponseWriter, r *http.Request) {
 
 // DryRunActionRequest is the body for approve/reject endpoints.
 type DryRunActionRequest struct {
-	ID string `json:"id"`
+	ID          string `json:"id"`
+	ApplyCPU    *bool  `json:"apply_cpu,omitempty"`
+	ApplyMemory *bool  `json:"apply_memory,omitempty"`
 }
 
 func (s *Server) handleDryRunApprove(w http.ResponseWriter, r *http.Request) {
@@ -446,18 +448,21 @@ func (s *Server) handleDryRunApprove(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusServiceUnavailable, "vertical applier not available")
 			return
 		}
+		applyCPU := req.ApplyCPU == nil || *req.ApplyCPU
+		applyMemory := req.ApplyMemory == nil || *req.ApplyMemory
 		rec := &applier.ResourceRecommendation{
 			Namespace:         d.Namespace,
 			WorkloadKind:      d.WorkloadKind,
 			WorkloadName:      d.DeploymentName,
 			ContainerName:     d.ContainerName,
 			CurrentCPU:        d.CurrentCPU,
-			RecommendedCPU:    d.RecommendedCPU,
+			RecommendedCPU:    func() string { if applyCPU { return d.RecommendedCPU }; return d.CurrentCPU }(),
 			CurrentMemory:     d.CurrentMemory,
-			RecommendedMemory: d.RecommendedMemory,
+			RecommendedMemory: func() string { if applyMemory { return d.RecommendedMemory }; return d.CurrentMemory }(),
 		}
 		result, err := s.verticalApplier.Apply(ctx, rec, false)
 		if err != nil || !result.Applied {
+			s.dryRunQueue.RevertToPending(req.ID)
 			msg := "vertical scale failed"
 			if err != nil {
 				msg += ": " + err.Error()
