@@ -7,8 +7,9 @@ import { ScalingHistoryPage } from './pages/ScalingHistoryPage'
 import { DryRunPage } from './pages/DryRunPage'
 import { ManualScalePage } from './pages/ManualScalePage'
 import { ResourceChartPage } from './pages/ResourceChartPage'
+import { CostSavingsPage } from './pages/CostSavingsPage'
 
-type Page = 'pods' | 'forecasts' | 'scaling-history' | 'dry-run' | 'manual-scale' | 'resource-chart'
+type Page = 'pods' | 'forecasts' | 'scaling-history' | 'dry-run' | 'manual-scale' | 'resource-chart' | 'cost-savings'
 
 export default function App() {
   const [page, setPage] = useState<Page>('pods')
@@ -20,6 +21,7 @@ export default function App() {
     'dry-run':         <DryRunPage />,
     'manual-scale':    <ManualScalePage />,
     'resource-chart':  <ResourceChartPage />,
+    'cost-savings':    <CostSavingsPage />,
   }[page]
 
   return (
