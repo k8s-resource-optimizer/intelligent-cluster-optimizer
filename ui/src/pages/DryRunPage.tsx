@@ -139,9 +139,12 @@ export function DryRunPage() {
     }
   }
 
-  const filtered = filter.trim()
-    ? decisions.filter(d => d.deployment_name.toLowerCase().includes(filter.toLowerCase()))
+  const filtered = filter
+    ? decisions.filter(d => d.deployment_name === filter)
     : decisions
+
+  const savingsDecisions = decisions.filter(d => (d.savings_per_month ?? 0) > 0)
+  const totalSavings = savingsDecisions.reduce((s, d) => s + (d.savings_per_month ?? 0), 0)
 
   return (
     <div>
@@ -185,6 +188,72 @@ export function DryRunPage() {
       </div>
 
       <UsageSummary decisions={decisions} pods={pods} filter={filter} />
+
+      {savingsDecisions.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#4ade80', textTransform: 'uppercase', letterSpacing: 1 }}>
+              💰 Savings Opportunities
+            </span>
+            <span style={{ fontSize: 13, color: '#4ade80', fontWeight: 600 }}>
+              Total: ${totalSavings.toFixed(2)}/mo
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {savingsDecisions.map(d => (
+              <div key={d.id} style={{
+                background: '#071a0e',
+                border: '1px solid #166534',
+                borderRadius: 8,
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 16,
+                flexWrap: 'wrap',
+              }}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 600, color: '#f1f5f9' }}>
+                    {d.deployment_name}
+                    {d.container_name && <span style={{ color: '#64748b', fontWeight: 400 }}> / {d.container_name}</span>}
+                  </span>
+                  {d.current_cpu && (
+                    <span style={{ fontSize: 12, color: '#94a3b8' }}>
+                      CPU <strong style={{ color: '#f1f5f9' }}>{d.current_cpu}</strong>
+                      <span style={{ color: '#475569', margin: '0 4px' }}>→</span>
+                      <strong style={{ color: '#4ade80' }}>{d.recommended_cpu}</strong>
+                    </span>
+                  )}
+                  {d.current_memory && (
+                    <span style={{ fontSize: 12, color: '#94a3b8' }}>
+                      Mem <strong style={{ color: '#f1f5f9' }}>{d.current_memory}</strong>
+                      <span style={{ color: '#475569', margin: '0 4px' }}>→</span>
+                      <strong style={{ color: '#4ade80' }}>{d.recommended_memory}</strong>
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#4ade80' }}>
+                    ${d.savings_per_month!.toFixed(2)}/mo
+                  </span>
+                  <ActionButton
+                    label="Approve"
+                    variant="approve"
+                    loading={loading[d.id] === 'approve'}
+                    onClick={() => handle(d.id, 'approve')}
+                  />
+                  <ActionButton
+                    label="Reject"
+                    variant="reject"
+                    loading={loading[d.id] === 'reject'}
+                    onClick={() => handle(d.id, 'reject')}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {error && (
         <div style={{ color: '#fca5a5', background: '#450a0a', padding: '10px 14px', borderRadius: 6, marginBottom: 16, fontSize: 13 }}>
