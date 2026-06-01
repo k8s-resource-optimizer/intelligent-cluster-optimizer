@@ -22,8 +22,8 @@ spec:
         args:
         - |
           while true; do
-            stress-ng --cpu 1 --cpu-load 40 --timeout 1800s
-            stress-ng --cpu 1 --cpu-load 10 --timeout 1800s
+            stress-ng --cpu 1 --cpu-load 40 --timeout 360s
+            stress-ng --cpu 1 --cpu-load 10 --timeout 360s
           done
         resources:
           requests:
