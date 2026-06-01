@@ -150,6 +150,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, config *optimizerv1alpha1.Op
 			return result, err
 		}
 		result.Updated = true
+		result.RequeueAfter = 5 * time.Second
 		return result, nil
 	}
 
