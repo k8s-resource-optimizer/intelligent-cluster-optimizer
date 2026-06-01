@@ -139,9 +139,12 @@ export function DryRunPage() {
     }
   }
 
+  const sorted = [...decisions].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  )
   const filtered = filter
-    ? decisions.filter(d => d.deployment_name === filter)
-    : decisions
+    ? sorted.filter(d => d.deployment_name === filter)
+    : sorted
 
   return (
     <div>

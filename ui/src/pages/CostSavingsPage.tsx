@@ -12,7 +12,9 @@ function dedup(decisions: DryRunDecision[]): DryRunDecision[] {
       map.set(key, d)
     }
   }
-  return [...map.values()].sort((a, b) => (b.savings_per_month ?? 0) - (a.savings_per_month ?? 0))
+  return [...map.values()].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  )
 }
 
 export function CostSavingsPage() {
