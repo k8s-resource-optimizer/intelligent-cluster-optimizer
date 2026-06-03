@@ -130,12 +130,11 @@ export function DryRunPage() {
         await api.reject(id)
         toast(`Scaling decision rejected`, 'info')
       }
-      await load()
     } catch (e) {
       toast(`Failed to ${action}: ${e}`, 'error')
-      await load()
     } finally {
       setLoading(prev => ({ ...prev, [id]: null }))
+      load()
     }
   }
 

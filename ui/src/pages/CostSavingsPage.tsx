@@ -43,12 +43,11 @@ export function CostSavingsPage() {
         await api.reject(id)
         toast('Rejected', 'info')
       }
-      await load()
     } catch (e) {
       toast(`Failed: ${e}`, 'error')
-      await load()
     } finally {
       setLoading(prev => ({ ...prev, [id]: null }))
+      load()
     }
   }
 
