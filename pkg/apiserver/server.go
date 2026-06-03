@@ -450,15 +450,23 @@ func (s *Server) handleDryRunApprove(w http.ResponseWriter, r *http.Request) {
 		}
 		applyCPU := req.ApplyCPU == nil || *req.ApplyCPU
 		applyMemory := req.ApplyMemory == nil || *req.ApplyMemory
+		recommendedCPU := d.CurrentCPU
+		if applyCPU {
+			recommendedCPU = d.RecommendedCPU
+		}
+		recommendedMemory := d.CurrentMemory
+		if applyMemory {
+			recommendedMemory = d.RecommendedMemory
+		}
 		rec := &applier.ResourceRecommendation{
 			Namespace:         d.Namespace,
 			WorkloadKind:      d.WorkloadKind,
 			WorkloadName:      d.DeploymentName,
 			ContainerName:     d.ContainerName,
 			CurrentCPU:        d.CurrentCPU,
-			RecommendedCPU:    func() string { if applyCPU { return d.RecommendedCPU }; return d.CurrentCPU }(),
+			RecommendedCPU:    recommendedCPU,
 			CurrentMemory:     d.CurrentMemory,
-			RecommendedMemory: func() string { if applyMemory { return d.RecommendedMemory }; return d.CurrentMemory }(),
+			RecommendedMemory: recommendedMemory,
 		}
 		result, err := s.verticalApplier.Apply(ctx, rec, false)
 		if err != nil || !result.Applied {
