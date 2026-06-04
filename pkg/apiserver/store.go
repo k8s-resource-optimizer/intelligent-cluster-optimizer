@@ -197,18 +197,25 @@ type DryRunDecision struct {
 	SavingsPerMonth   float64 `json:"savings_per_month,omitempty"`
 }
 
+const approveCooldown = 2 * time.Minute
+
 // DryRunQueue is a thread-safe store for dry-run decisions.
 type DryRunQueue struct {
-	mu        sync.RWMutex
-	decisions map[string]*DryRunDecision
+	mu           sync.RWMutex
+	decisions    map[string]*DryRunDecision
+	lastApproved map[string]time.Time // key: namespace/deployment/container
 }
 
 // NewDryRunQueue creates an empty DryRunQueue.
 func NewDryRunQueue() *DryRunQueue {
-	return &DryRunQueue{decisions: make(map[string]*DryRunDecision)}
+	return &DryRunQueue{
+		decisions:    make(map[string]*DryRunDecision),
+		lastApproved: make(map[string]time.Time),
+	}
 }
 
-// Add enqueues a new dry-run decision (status is set to pending automatically).
+// Add enqueues a new dry-run decision. Returns "" if the workload was recently
+// approved and is still in the cooldown window.
 func (q *DryRunQueue) Add(d DryRunDecision) string {
 	if d.ID == "" {
 		d.ID = newID()
@@ -219,6 +226,10 @@ func (q *DryRunQueue) Add(d DryRunDecision) string {
 	d.Status = DryRunPending
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	cooldownKey := d.Namespace + "/" + d.DeploymentName + "/" + d.ContainerName
+	if t, ok := q.lastApproved[cooldownKey]; ok && time.Since(t) < approveCooldown {
+		return ""
+	}
 	q.decisions[d.ID] = &d
 	return d.ID
 }
@@ -268,9 +279,12 @@ func (q *DryRunQueue) Approve(id string) (*DryRunDecision, bool) {
 	if !ok {
 		return nil, false
 	}
-	// Reject duplicates for the same workload so they don't conflict.
+	// Record approval time and reject all other pending items for the same
+	// workload so they can't be approved during the rollout.
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	cooldownKey := d.Namespace + "/" + d.DeploymentName + "/" + d.ContainerName
+	q.lastApproved[cooldownKey] = time.Now()
 	now := time.Now()
 	for _, other := range q.decisions {
 		if other.ID != id &&
