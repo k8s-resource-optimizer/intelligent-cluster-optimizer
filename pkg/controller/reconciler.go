@@ -620,8 +620,9 @@ func (r *Reconciler) processRecommendations(ctx context.Context, config *optimiz
 
 			// Skip if no changes needed
 			if !rec.HasChanges() {
-				klog.V(4).Infof("[%s] Skipping %s/%s/%s: no changes needed",
-					mode, rec.Namespace, rec.WorkloadName, rec.ContainerName)
+				klog.V(3).Infof("[%s] Skipping %s/%s/%s: no changes needed (current CPU=%s recommended CPU=%s, current mem=%s recommended mem=%s)",
+					mode, rec.Namespace, rec.WorkloadName, rec.ContainerName,
+					rec.CurrentCPU, rec.RecommendedCPU, rec.CurrentMemory, rec.RecommendedMemory)
 				skippedCount++
 				continue
 			}
