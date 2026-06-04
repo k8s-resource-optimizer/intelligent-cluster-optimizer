@@ -110,6 +110,19 @@ func (r *DetectionResult) HighSeverityCount() int {
 	return count
 }
 
+// RecentHighSeverityCount returns the count of high or critical severity anomalies
+// in the last windowSize samples. Used to avoid blocking on historical cyclic patterns.
+func (r *DetectionResult) RecentHighSeverityCount(windowSize int) int {
+	threshold := r.SampleCount - windowSize
+	count := 0
+	for _, a := range r.Anomalies {
+		if a.Index >= threshold && (a.Severity == SeverityHigh || a.Severity == SeverityCritical) {
+			count++
+		}
+	}
+	return count
+}
+
 // Summary returns a human-readable summary of the detection result
 func (r *DetectionResult) Summary() string {
 	if !r.HasAnomalies() {

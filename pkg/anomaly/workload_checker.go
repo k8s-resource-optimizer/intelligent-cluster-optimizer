@@ -52,6 +52,12 @@ type WorkloadChecker struct {
 
 	// MinAnomaliesForBlock is the minimum number of anomalies required to block
 	MinAnomaliesForBlock int
+
+	// RecentWindowSize is how many of the most-recent samples are checked when
+	// deciding whether to block scaling. Only anomalies within this window can
+	// trigger a block — historical anomalies from cyclic/bursty workloads are
+	// ignored so that a known repeating pattern does not permanently prevent scaling.
+	RecentWindowSize int
 }
 
 // NewWorkloadChecker creates a new workload anomaly checker with default settings
@@ -62,6 +68,7 @@ func NewWorkloadChecker() *WorkloadChecker {
 		Config:               config,
 		BlockOnHighSeverity:  true,
 		MinAnomaliesForBlock: 1,
+		RecentWindowSize:     10,
 	}
 }
 
@@ -72,6 +79,7 @@ func NewWorkloadCheckerWithConfig(config *Config) *WorkloadChecker {
 		Config:               config,
 		BlockOnHighSeverity:  true,
 		MinAnomaliesForBlock: 1,
+		RecentWindowSize:     10,
 	}
 }
 
@@ -205,25 +213,27 @@ func (c *WorkloadChecker) getHighestSeverity(cpu, memory *DetectionResult) Sever
 	return highest
 }
 
-// shouldBlock determines if scaling should be blocked based on anomaly results
+// shouldBlock determines if scaling should be blocked based on anomaly results.
+// Only anomalies within the most-recent RecentWindowSize samples are considered
+// so that long-running cyclic workloads with many historical anomalies are not
+// permanently blocked.
 func (c *WorkloadChecker) shouldBlock(result *WorkloadAnomalyResult) (bool, string) {
 	if !result.HasAnyAnomaly {
 		return false, ""
 	}
 
-	// Block on high severity if configured
-	if c.BlockOnHighSeverity && result.HighSeverityCount > 0 {
-		return true, fmt.Sprintf("%d high severity anomalies detected", result.HighSeverityCount)
+	window := c.RecentWindowSize
+	if window <= 0 {
+		window = 10
 	}
 
-	// Block if minimum anomaly count reached
-	if result.AnomalyCount >= c.MinAnomaliesForBlock {
-		if result.HighestSeverity == SeverityCritical {
-			return true, fmt.Sprintf("critical anomaly detected in %s", result.WorkloadName)
-		}
-		if result.HighestSeverity == SeverityHigh {
-			return true, fmt.Sprintf("high severity anomaly detected in %s", result.WorkloadName)
-		}
+	recentHighCPU := result.CPUAnomalies.RecentHighSeverityCount(window)
+	recentHighMem := result.MemoryAnomalies.RecentHighSeverityCount(window)
+	recentHighTotal := recentHighCPU + recentHighMem
+
+	// Block on high severity only if anomalies are recent
+	if c.BlockOnHighSeverity && recentHighTotal > 0 {
+		return true, fmt.Sprintf("%d recent high severity anomalies detected (window=%d samples)", recentHighTotal, window)
 	}
 
 	return false, ""
