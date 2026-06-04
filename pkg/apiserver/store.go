@@ -260,9 +260,29 @@ func (q *DryRunQueue) Get(id string) (*DryRunDecision, bool) {
 }
 
 // Approve marks a pending decision as approved and returns it.
+// All other pending decisions for the same deployment are rejected to prevent
+// duplicate applies that would conflict with the in-progress rollout.
 // Returns (nil, false) if the ID does not exist or is not pending.
 func (q *DryRunQueue) Approve(id string) (*DryRunDecision, bool) {
-	return q.setStatus(id, DryRunApproved)
+	d, ok := q.setStatus(id, DryRunApproved)
+	if !ok {
+		return nil, false
+	}
+	// Reject duplicates for the same workload so they don't conflict.
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	now := time.Now()
+	for _, other := range q.decisions {
+		if other.ID != id &&
+			other.Status == DryRunPending &&
+			other.Namespace == d.Namespace &&
+			other.DeploymentName == d.DeploymentName &&
+			other.ContainerName == d.ContainerName {
+			other.Status = DryRunRejected
+			other.ReviewedAt = &now
+		}
+	}
+	return d, true
 }
 
 // Reject marks a pending decision as rejected and returns it.
