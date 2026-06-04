@@ -17,7 +17,13 @@ const DEPLOYMENTS = [
   { namespace: 'workloads', deployment: 'app-cpu-intensive' },
 ]
 
-const WINDOW_MS = 2 * 60 * 60 * 1000 // 2 hours
+const WINDOW_OPTIONS = [
+  { label: '2h',  ms: 2  * 60 * 60 * 1000 },
+  { label: '6h',  ms: 6  * 60 * 60 * 1000 },
+  { label: '12h', ms: 12 * 60 * 60 * 1000 },
+  { label: '24h', ms: 24 * 60 * 60 * 1000 },
+  { label: '48h', ms: 48 * 60 * 60 * 1000 },
+]
 
 function fmtTime(ts: string) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -96,7 +102,8 @@ export function ResourceChartPage() {
   const [history, setHistory] = useState<ScalingRecord[]>([])
   const [error, setError] = useState<string | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-  // windowEnd: end of visible 2h window (null = live/latest)
+  const [windowMs, setWindowMs] = useState(WINDOW_OPTIONS[0].ms)
+  // windowEnd: end of visible window (null = live/latest)
   const [windowEnd, setWindowEnd] = useState<number | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -128,7 +135,7 @@ export function ResourceChartPage() {
   const dataEnd = sorted.length > 0 ? new Date(sorted[sorted.length - 1].timestamp).getTime() : 0
 
   const effectiveEnd = windowEnd ?? dataEnd
-  const effectiveStart = effectiveEnd - WINDOW_MS
+  const effectiveStart = effectiveEnd - windowMs
   const isLive = windowEnd === null || windowEnd >= dataEnd - 30_000
 
   // Filter points to current window
@@ -155,14 +162,14 @@ export function ResourceChartPage() {
   function goBack() {
     setWindowEnd(prev => {
       const end = prev ?? dataEnd
-      return Math.max(dataStart + WINDOW_MS, end - WINDOW_MS)
+      return Math.max(dataStart + windowMs, end - windowMs)
     })
   }
 
   function goForward() {
     setWindowEnd(prev => {
       const end = prev ?? dataEnd
-      const next = end + WINDOW_MS
+      const next = end + windowMs
       if (next >= dataEnd) return null // snap to live
       return next
     })
@@ -271,12 +278,27 @@ export function ResourceChartPage() {
           border: '1px solid #1e2535',
           borderRadius: 8,
         }}>
-          <button style={btnStyle(canGoBack)} onClick={canGoBack ? goBack : undefined}>← 2h</button>
+          <button style={btnStyle(canGoBack)} onClick={canGoBack ? goBack : undefined}>←</button>
           <div style={{ flex: 1, textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>
             {fmtDateTime(new Date(effectiveStart))} — {fmtDateTime(new Date(effectiveEnd))}
             {isLive && <span style={{ color: '#4ade80', marginLeft: 8, fontWeight: 600 }}>● LIVE</span>}
           </div>
-          <button style={btnStyle(canGoForward)} onClick={canGoForward ? goForward : undefined}>2h →</button>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {WINDOW_OPTIONS.map(opt => (
+              <button
+                key={opt.label}
+                onClick={() => { setWindowMs(opt.ms); setWindowEnd(null) }}
+                style={{
+                  padding: '3px 8px', borderRadius: 4, border: '1px solid',
+                  borderColor: windowMs === opt.ms ? '#60a5fa' : '#1e2535',
+                  background: windowMs === opt.ms ? '#1e3a5f' : 'transparent',
+                  color: windowMs === opt.ms ? '#60a5fa' : '#64748b',
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                }}
+              >{opt.label}</button>
+            ))}
+          </div>
+          <button style={btnStyle(canGoForward)} onClick={canGoForward ? goForward : undefined}>→</button>
           {!isLive && (
             <button
               style={{ ...btnStyle(true), color: '#4ade80', borderColor: '#166534' }}
