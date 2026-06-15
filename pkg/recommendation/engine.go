@@ -42,7 +42,7 @@ func NewEngine() *Engine {
 		defaultMemoryPercentile: 95,
 		defaultSafetyMargin:     1.2,
 		defaultMinSamples:       10,
-		defaultHistoryDuration:  24 * time.Hour,
+		defaultHistoryDuration:  1 * time.Hour,
 		costCalculator:          cost.NewCalculator(nil), // Use default pricing
 		confidenceCalculator:    NewConfidenceCalculator(),
 		expectedSampleInterval:  30 * time.Second, // Default: metrics collected every 30s
