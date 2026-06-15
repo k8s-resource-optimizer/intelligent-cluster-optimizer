@@ -44,9 +44,9 @@ func TestIntegration_Fallback_MLServiceUnavailable(t *testing.T) {
 	hwFcaster := forecaster.NewHoltWintersForecaster(logger)
 	fb := forecaster.NewFallbackForecaster(mlClient, hwFcaster, logger)
 
-	samples := make([]float64, 60)
+	samples := make([]float64, 120)
 	for i := range samples {
-		samples[i] = 0.1 + 0.3*float64(i)/60.0
+		samples[i] = 0.1 + 0.3*float64(i)/120.0
 	}
 
 	resp, err := fb.Predict(context.Background(), samples)
@@ -73,7 +73,7 @@ func TestIntegration_Fallback_MLServiceTimeout(t *testing.T) {
 	hwFcaster := forecaster.NewHoltWintersForecaster(logger)
 	fb := forecaster.NewFallbackForecaster(mlClient, hwFcaster, logger)
 
-	samples := make([]float64, 60)
+	samples := make([]float64, 120)
 	for i := range samples {
 		samples[i] = 0.2
 	}

@@ -56,7 +56,7 @@ func (h *HoltWintersForecaster) Predict(_ context.Context, cpuValues []float64) 
 	if len(cpuValues) > maxWindow {
 		cpuValues = cpuValues[len(cpuValues)-maxWindow:]
 	}
-	hw := prediction.NewHoltWinters()
+	hw := prediction.NewHoltWintersWithConfig(prediction.PodMetricsConfig())
 	result, err := hw.FitPredict(cpuValues, horizon)
 	if err != nil {
 		return nil, fmt.Errorf("holt-winters: %w", err)

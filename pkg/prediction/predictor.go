@@ -170,18 +170,34 @@ type Config struct {
 	MinDataPoints int
 }
 
-// DefaultConfig returns default prediction configuration
+// DefaultConfig returns default prediction configuration (hourly data, daily seasonality).
 func DefaultConfig() *Config {
 	return &Config{
-		SeasonalPeriod:  120, // 30s samples → 1-hour cycle (covers stress/cyclic patterns)
-		Alpha:           0,   // Auto-optimize
-		Beta:            0,   // Auto-optimize
-		Gamma:           0,   // Auto-optimize
+		SeasonalPeriod:  24, // Hourly data with daily seasonality
+		Alpha:           0,  // Auto-optimize
+		Beta:            0,  // Auto-optimize
+		Gamma:           0,  // Auto-optimize
 		SeasonalType:    SeasonalAdditive,
-		TrendType:       TrendDamped, // Damped trend prevents long-horizon drift
+		TrendType:       TrendAdditive,
+		DampingFactor:   0.9,
+		ConfidenceLevel: 0.95,
+		MinDataPoints:   2, // At least 2 seasons
+	}
+}
+
+// PodMetricsConfig returns Holt-Winters config tuned for 30-second pod CPU samples.
+// SeasonalPeriod=120 covers a 1-hour cycle; TrendDamped prevents long-horizon drift.
+func PodMetricsConfig() *Config {
+	return &Config{
+		SeasonalPeriod:  120,
+		Alpha:           0,
+		Beta:            0,
+		Gamma:           0,
+		SeasonalType:    SeasonalAdditive,
+		TrendType:       TrendDamped,
 		DampingFactor:   0.85,
 		ConfidenceLevel: 0.95,
-		MinDataPoints:   1, // 1 full season = 120 samples = 1 hour
+		MinDataPoints:   1,
 	}
 }
 
