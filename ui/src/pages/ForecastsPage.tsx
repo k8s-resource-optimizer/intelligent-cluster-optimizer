@@ -74,7 +74,11 @@ function ForecastCard({ entry }: { entry: ForecastEntry }) {
           <Tooltip
             contentStyle={{ background: '#141824', border: '1px solid #1e2535', borderRadius: 6, fontSize: 12 }}
             labelStyle={{ color: '#94a3b8' }}
-            formatter={(v: number) => [`${v}%`]}
+            formatter={(v: number | [number, number], name: string) =>
+              name === 'Confidence (p10-p90)' && Array.isArray(v)
+                ? [`${v[0]}% – ${v[1]}%`, name]
+                : [`${v}%`, name]
+            }
           />
           <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
           <Area
@@ -104,9 +108,13 @@ export function ForecastsPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    api.forecasts()
-      .then(data => { setEntries(data); setError(null) })
-      .catch(e => setError(String(e)))
+    const load = () =>
+      api.forecasts()
+        .then(data => { setEntries(data); setError(null) })
+        .catch(e => setError(String(e)))
+    load()
+    const t = setInterval(load, 30_000)
+    return () => clearInterval(t)
   }, [])
 
   return (
