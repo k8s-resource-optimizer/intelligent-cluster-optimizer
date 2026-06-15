@@ -1,4 +1,5 @@
 # Build stage
+ARG BUILDPLATFORM=linux/amd64
 FROM --platform=$BUILDPLATFORM mirror.gcr.io/library/golang:1.26-alpine AS builder
 
 WORKDIR /app
