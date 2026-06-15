@@ -173,15 +173,15 @@ type Config struct {
 // DefaultConfig returns default prediction configuration
 func DefaultConfig() *Config {
 	return &Config{
-		SeasonalPeriod:  24, // Hourly data with daily seasonality
-		Alpha:           0,  // Auto-optimize
-		Beta:            0,  // Auto-optimize
-		Gamma:           0,  // Auto-optimize
+		SeasonalPeriod:  120, // 30s samples → 1-hour cycle (covers stress/cyclic patterns)
+		Alpha:           0,   // Auto-optimize
+		Beta:            0,   // Auto-optimize
+		Gamma:           0,   // Auto-optimize
 		SeasonalType:    SeasonalAdditive,
-		TrendType:       TrendAdditive,
-		DampingFactor:   0.9,
+		TrendType:       TrendDamped, // Damped trend prevents long-horizon drift
+		DampingFactor:   0.85,
 		ConfidenceLevel: 0.95,
-		MinDataPoints:   2, // At least 2 seasons
+		MinDataPoints:   1, // 1 full season = 120 samples = 1 hour
 	}
 }
 

@@ -463,6 +463,26 @@ func (r *Reconciler) processRecommendations(ctx context.Context, config *optimiz
 				scalingRec := pred.GetScalingRecommendation(workloadRec.CurrentTotalCPU, workloadRec.CurrentTotalMemory)
 				klog.V(4).Infof("[%s] Prediction for %s/%s: %s (confidence=%.1f%%)",
 					mode, workloadRec.Namespace, workloadRec.WorkloadName, scalingRec, pred.Confidence)
+
+				// Store Holt-Winters forecast in cache so /api/forecasts returns data
+				// even when the ML forecaster (Chronos-2) is not configured.
+				if r.forecastCache != nil && pred.CPUForecast != nil {
+					points := make([]forecaster.ForecastPoint, len(pred.CPUForecast.Forecasts))
+					for i, f := range pred.CPUForecast.Forecasts {
+						points[i] = forecaster.ForecastPoint{
+							Step:   i + 1,
+							Low:    f.LowerBound,
+							Median: f.Value,
+							High:   f.UpperBound,
+						}
+					}
+					r.forecastCache.Set(workloadRec.Namespace, workloadRec.WorkloadName, apiserver.ForecastEntry{
+						Namespace:      workloadRec.Namespace,
+						DeploymentName: workloadRec.WorkloadName,
+						Points:         points,
+						CPUSamples:     len(workloadMetrics),
+					})
+				}
 			}
 		}
 
@@ -618,8 +638,10 @@ func (r *Reconciler) processRecommendations(ctx context.Context, config *optimiz
 				RecommendedMemory: formatMemory(containerRec.RecommendedMemory),
 			}
 
-			// Skip if no changes needed
-			if !rec.HasChanges() {
+			// Skip if no changes needed.
+			// In dry-run mode we bypass the 5% minimum-change threshold so that
+			// all candidates are queued for user review, even small adjustments.
+			if !config.Spec.DryRun && !rec.HasChanges() {
 				klog.V(3).Infof("[%s] Skipping %s/%s/%s: no changes needed (current CPU=%s recommended CPU=%s, current mem=%s recommended mem=%s)",
 					mode, rec.Namespace, rec.WorkloadName, rec.ContainerName,
 					rec.CurrentCPU, rec.RecommendedCPU, rec.CurrentMemory, rec.RecommendedMemory)

@@ -74,7 +74,11 @@ export function ScalingHistoryPage() {
       })
       .catch(e => setError(String(e)))
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    const t = setInterval(load, 30_000)
+    return () => clearInterval(t)
+  }, [])
 
   // Unique deployment names for filter dropdown
   const deployments = useMemo(() => {

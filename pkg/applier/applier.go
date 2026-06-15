@@ -47,12 +47,6 @@ func (a *Applier) DryRunApply(ctx context.Context, recommendation *ResourceRecom
 		Changes:      []string{},
 	}
 
-	if !recommendation.HasChanges() {
-		klog.V(3).Infof("[DRY-RUN] No changes needed for %s/%s/%s",
-			recommendation.Namespace, recommendation.WorkloadKind, recommendation.WorkloadName)
-		return result, nil
-	}
-
 	if recommendation.CurrentCPU != recommendation.RecommendedCPU {
 		change := fmt.Sprintf("CPU: %s -> %s", recommendation.CurrentCPU, recommendation.RecommendedCPU)
 		result.Changes = append(result.Changes, change)
@@ -85,7 +79,8 @@ func (a *Applier) LiveApply(ctx context.Context, recommendation *ResourceRecomme
 		Changes:      []string{},
 	}
 
-	if !recommendation.HasChanges() {
+	if recommendation.CurrentCPU == recommendation.RecommendedCPU &&
+		recommendation.CurrentMemory == recommendation.RecommendedMemory {
 		klog.V(3).Infof("[LIVE] No changes needed for %s/%s/%s",
 			recommendation.Namespace, recommendation.WorkloadKind, recommendation.WorkloadName)
 		return result, nil

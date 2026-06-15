@@ -11,6 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
@@ -226,18 +227,37 @@ func (v *VerticalScaler) rollingUpdateDeployment(ctx context.Context, req *Scale
 		}
 	}
 
+	// Enforce RollingUpdate with maxUnavailable=0 so new pod becomes Ready
+	// before the old one is terminated — guaranteed zero downtime.
+	maxSurge := intstr.FromInt32(1)
+	maxUnavailable := intstr.FromInt32(0)
+	deploy.Spec.Strategy = appsv1.DeploymentStrategy{
+		Type: appsv1.RollingUpdateDeploymentStrategyType,
+		RollingUpdate: &appsv1.RollingUpdateDeployment{
+			MaxSurge:       &maxSurge,
+			MaxUnavailable: &maxUnavailable,
+		},
+	}
+
 	_, err = v.kubeClient.AppsV1().Deployments(req.Namespace).Update(ctx, deploy, metav1.UpdateOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to update deployment: %v", err)
 	}
 
-	if err := v.waitForRolloutComplete(ctx, req.Namespace, req.WorkloadName, "Deployment"); err != nil {
-		v.recordEvent(deploy, corev1.EventTypeWarning, "VerticalScaleFailed", fmt.Sprintf("Rollout failed: %v", err))
-		return err
-	}
+	// Monitor rollout asynchronously so the approve handler can return immediately.
+	// The deployment spec is already applied; Kubernetes handles the rollout.
+	go func() {
+		monCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		if err := v.waitForRolloutComplete(monCtx, req.Namespace, req.WorkloadName, "Deployment"); err != nil {
+			v.recordEvent(deploy, corev1.EventTypeWarning, "VerticalScaleFailed", fmt.Sprintf("Rollout failed: %v", err))
+			klog.Warningf("Rollout monitoring for Deployment %s/%s failed: %v", req.Namespace, req.WorkloadName, err)
+			return
+		}
+		v.recordEvent(deploy, corev1.EventTypeNormal, "VerticalScaleComplete", "Rolling update completed successfully")
+		klog.Infof("Successfully completed rolling update for Deployment %s/%s", req.Namespace, req.WorkloadName)
+	}()
 
-	v.recordEvent(deploy, corev1.EventTypeNormal, "VerticalScaleComplete", "Rolling update completed successfully")
-	klog.Infof("Successfully completed rolling update for Deployment %s/%s", req.Namespace, req.WorkloadName)
 	return nil
 }
 
@@ -316,13 +336,18 @@ func (v *VerticalScaler) rollingUpdateDaemonSet(ctx context.Context, req *ScaleR
 		return fmt.Errorf("failed to update daemonset: %v", err)
 	}
 
-	if err := v.waitForRolloutComplete(ctx, req.Namespace, req.WorkloadName, "DaemonSet"); err != nil {
-		v.recordEvent(ds, corev1.EventTypeWarning, "VerticalScaleFailed", fmt.Sprintf("Rollout failed: %v", err))
-		return err
-	}
+	go func() {
+		monCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		if err := v.waitForRolloutComplete(monCtx, req.Namespace, req.WorkloadName, "DaemonSet"); err != nil {
+			v.recordEvent(ds, corev1.EventTypeWarning, "VerticalScaleFailed", fmt.Sprintf("Rollout failed: %v", err))
+			klog.Warningf("Rollout monitoring for DaemonSet %s/%s failed: %v", req.Namespace, req.WorkloadName, err)
+			return
+		}
+		v.recordEvent(ds, corev1.EventTypeNormal, "VerticalScaleComplete", "Rolling update completed successfully")
+		klog.Infof("Successfully completed rolling update for DaemonSet %s/%s", req.Namespace, req.WorkloadName)
+	}()
 
-	v.recordEvent(ds, corev1.EventTypeNormal, "VerticalScaleComplete", "Rolling update completed successfully")
-	klog.Infof("Successfully completed rolling update for DaemonSet %s/%s", req.Namespace, req.WorkloadName)
 	return nil
 }
 

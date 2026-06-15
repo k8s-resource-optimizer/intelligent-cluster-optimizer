@@ -132,4 +132,6 @@ export const api = {
   reject: (id: string) => post<DryRunDecision>('/api/dry-run/reject', { id }),
   scale: (namespace: string, deployment_name: string, replicas: number, reason = 'Manual') =>
     post<ScalingRecord>('/api/scale', { namespace, deployment_name, replicas, reason }),
+  setMode: (name: string, namespace: string, dryRun: boolean) =>
+    post<OptimizerConfigSummary>('/api/set-mode', { name, namespace, dry_run: dryRun }),
 }

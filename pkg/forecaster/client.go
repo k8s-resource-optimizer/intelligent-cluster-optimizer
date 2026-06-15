@@ -52,6 +52,10 @@ func NewHoltWintersForecaster(logger *zap.Logger) *HoltWintersForecaster {
 // The prediction horizon matches the ML service default of 15 steps.
 func (h *HoltWintersForecaster) Predict(_ context.Context, cpuValues []float64) (*PredictResponse, error) {
 	const horizon = 15
+	const maxWindow = 2880 // last 24 hours at 30s intervals
+	if len(cpuValues) > maxWindow {
+		cpuValues = cpuValues[len(cpuValues)-maxWindow:]
+	}
 	hw := prediction.NewHoltWinters()
 	result, err := hw.FitPredict(cpuValues, horizon)
 	if err != nil {

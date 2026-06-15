@@ -136,9 +136,24 @@ func NewForecastCache() *ForecastCache {
 }
 
 // Set overwrites the cached forecast for the given deployment.
+// Values are clamped to [0, 1] to guard against model outliers.
 func (c *ForecastCache) Set(ns, deploy string, entry ForecastEntry) {
 	if entry.Timestamp.IsZero() {
 		entry.Timestamp = time.Now()
+	}
+	clamp := func(v float64) float64 {
+		if v < 0 {
+			return 0
+		}
+		if v > 1 {
+			return 1
+		}
+		return v
+	}
+	for i := range entry.Points {
+		entry.Points[i].Low    = clamp(entry.Points[i].Low)
+		entry.Points[i].Median = clamp(entry.Points[i].Median)
+		entry.Points[i].High   = clamp(entry.Points[i].High)
 	}
 	key := ns + "/" + deploy
 	c.mu.Lock()
@@ -320,11 +335,14 @@ func (q *DryRunQueue) setStatus(id string, status DryRunStatus) (*DryRunDecision
 }
 
 // RevertToPending resets a decision back to pending if the live apply failed.
+// It also clears the cooldown so new recommendations are not blocked.
 func (q *DryRunQueue) RevertToPending(id string) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if d, ok := q.decisions[id]; ok {
 		d.Status = DryRunPending
 		d.ReviewedAt = nil
+		cooldownKey := d.Namespace + "/" + d.DeploymentName + "/" + d.ContainerName
+		delete(q.lastApproved, cooldownKey)
 	}
 }

@@ -13,13 +13,13 @@ import {
 import { api, type ForecastEntry } from '../api'
 
 function buildChartData(entry: ForecastEntry) {
-  return entry.points.map(p => ({
-    step: `+${p.step}`,
-    low: +(p.low * 100).toFixed(1),
-    median: +(p.median * 100).toFixed(1),
-    high: +(p.high * 100).toFixed(1),
-    band: [+(p.low * 100).toFixed(1), +(p.high * 100).toFixed(1)] as [number, number],
-  }))
+  const pct = (v: number) => Math.min(100, Math.max(0, +(v * 100).toFixed(1)))
+  return entry.points.map(p => {
+    const low    = pct(p.low)
+    const median = pct(p.median)
+    const high   = pct(p.high)
+    return { step: `+${p.step}`, low, median, high, band: [low, high] as [number, number] }
+  })
 }
 
 function ForecastCard({ entry }: { entry: ForecastEntry }) {

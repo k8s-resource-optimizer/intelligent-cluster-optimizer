@@ -76,12 +76,13 @@ func NewServer(cfg Config) *Server {
 	mux.HandleFunc("/api/dry-run/approve", s.handleDryRunApprove)
 	mux.HandleFunc("/api/dry-run/reject", s.handleDryRunReject)
 	mux.HandleFunc("/api/metrics-history", s.handleMetricsHistory)
+	mux.HandleFunc("/api/set-mode", s.handleSetMode)
 
 	s.httpServer = &http.Server{
 		Addr:         s.addr,
 		Handler:      corsMiddleware(mux),
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 60 * time.Second,
+		WriteTimeout: 3 * time.Minute,
 		IdleTimeout:  60 * time.Second,
 	}
 
@@ -439,7 +440,7 @@ func (s *Server) handleDryRunApprove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
 	switch d.ScalingType {
@@ -614,4 +615,65 @@ func (s *Server) handleMetricsHistory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, points)
+}
+
+// ── /api/set-mode ─────────────────────────────────────────────────────────────
+
+// SetModeRequest is the body for POST /api/set-mode.
+type SetModeRequest struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	DryRun    bool   `json:"dry_run"`
+}
+
+func (s *Server) handleSetMode(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "POST only")
+		return
+	}
+	if s.optimizerClient == nil {
+		writeError(w, http.StatusServiceUnavailable, "optimizer client not available")
+		return
+	}
+
+	var req SetModeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	if req.Name == "" {
+		writeError(w, http.StatusBadRequest, "name is required")
+		return
+	}
+
+	type patchSpec struct {
+		DryRun bool `json:"dryRun"`
+	}
+	type patchBody struct {
+		Spec patchSpec `json:"spec"`
+	}
+	data, err := json.Marshal(patchBody{Spec: patchSpec{DryRun: req.DryRun}})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "marshal failed: "+err.Error())
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	cfg, err := s.optimizerClient.Patch(ctx, req.Name, "application/merge-patch+json", data, metav1.PatchOptions{})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "patch failed: "+err.Error())
+		return
+	}
+
+	mlEnabled := cfg.Spec.MLForecaster != nil && cfg.Spec.MLForecaster.Enabled
+	writeJSON(w, http.StatusOK, OptimizerConfigSummary{
+		Name:                cfg.Name,
+		Namespace:           cfg.Namespace,
+		Enabled:             cfg.Spec.Enabled,
+		DryRun:              cfg.Spec.DryRun,
+		Phase:               string(cfg.Status.Phase),
+		MLForecasterEnabled: mlEnabled,
+	})
 }

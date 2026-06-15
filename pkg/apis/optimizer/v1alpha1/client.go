@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/rest"
 )
@@ -95,6 +96,21 @@ func (c *OptimizerConfigClient) UpdateStatus(ctx context.Context, config *Optimi
 		SubResource("status").
 		VersionedParams(&opts, metav1.ParameterCodec).
 		Body(config).
+		Do(ctx).
+		Into(result)
+	return result, err
+}
+
+// Patch applies a patch to an OptimizerConfig.
+func (c *OptimizerConfigClient) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions) (*OptimizerConfig, error) {
+	result := &OptimizerConfig{}
+	err := c.restClient.
+		Patch(pt).
+		Namespace(c.namespace).
+		Resource("optimizerconfigs").
+		Name(name).
+		VersionedParams(&opts, metav1.ParameterCodec).
+		Body(data).
 		Do(ctx).
 		Into(result)
 	return result, err
