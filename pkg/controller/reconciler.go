@@ -423,7 +423,7 @@ func (r *Reconciler) processRecommendations(ctx context.Context, config *optimiz
 		}
 
 		// SAFETY CHECK: Check for anomalies in workload metrics before scaling
-		workloadMetrics := r.metricsStorage.GetMetricsByWorkload(workloadRec.Namespace, workloadRec.WorkloadName, 24*time.Hour)
+		workloadMetrics := r.metricsStorage.GetMetricsByWorkload(workloadRec.Namespace, workloadRec.WorkloadName, 1*time.Hour)
 		if len(workloadMetrics) > 0 {
 			anomalyResult := r.anomalyChecker.CheckWorkload(workloadRec.Namespace, workloadRec.WorkloadName, workloadMetrics)
 			if anomalyResult.ShouldBlockScaling {
